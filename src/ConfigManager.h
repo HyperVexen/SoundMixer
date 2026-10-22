@@ -30,6 +30,18 @@ struct SavedSoundEffectConfig {
     std::string hotkeyText;
 };
 
+struct SavedVoiceFxConfig {
+    bool enabled = false;
+    int preset = 0;
+    float pitchSemitones = 0.0f;
+    bool robotEnabled = false;
+    float robotFreq = 120.0f;
+    bool radioEnabled = false;
+    float reverbWet = 0.0f;
+    bool gateEnabled = true;
+    float gateThresholdDb = -48.0f;
+};
+
 struct AppConfig {
     float masterVolume = 1.0f;
     bool masterMuted = false;
@@ -39,6 +51,8 @@ struct AppConfig {
     uint32_t stopAllModifiers = 0;
     uint32_t stopAllVk = 0;
     std::string stopAllText;
+
+    SavedVoiceFxConfig voiceFx;
 
     std::vector<SavedOutputConfig> outputs;
     std::vector<SavedSourceConfig> sources;

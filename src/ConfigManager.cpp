@@ -30,6 +30,19 @@ bool ConfigManager::loadConfig(const std::string& filePath, AppConfig& outConfig
         if (j.contains("stopAllVk")) outConfig.stopAllVk = j["stopAllVk"].get<uint32_t>();
         if (j.contains("stopAllText")) outConfig.stopAllText = j["stopAllText"].get<std::string>();
 
+        if (j.contains("voiceFx")) {
+            const auto& v = j["voiceFx"];
+            if (v.contains("enabled")) outConfig.voiceFx.enabled = v["enabled"].get<bool>();
+            if (v.contains("preset")) outConfig.voiceFx.preset = v["preset"].get<int>();
+            if (v.contains("pitchSemitones")) outConfig.voiceFx.pitchSemitones = v["pitchSemitones"].get<float>();
+            if (v.contains("robotEnabled")) outConfig.voiceFx.robotEnabled = v["robotEnabled"].get<bool>();
+            if (v.contains("robotFreq")) outConfig.voiceFx.robotFreq = v["robotFreq"].get<float>();
+            if (v.contains("radioEnabled")) outConfig.voiceFx.radioEnabled = v["radioEnabled"].get<bool>();
+            if (v.contains("reverbWet")) outConfig.voiceFx.reverbWet = v["reverbWet"].get<float>();
+            if (v.contains("gateEnabled")) outConfig.voiceFx.gateEnabled = v["gateEnabled"].get<bool>();
+            if (v.contains("gateThresholdDb")) outConfig.voiceFx.gateThresholdDb = v["gateThresholdDb"].get<float>();
+        }
+
         outConfig.soundEffects.clear();
         if (j.contains("soundEffects") && j["soundEffects"].is_array()) {
             for (const auto& item : j["soundEffects"]) {
@@ -106,6 +119,18 @@ bool ConfigManager::saveConfig(const std::string& filePath, const AppConfig& con
         j["stopAllVk"] = config.stopAllVk;
         j["stopAllText"] = config.stopAllText;
 
+        json v;
+        v["enabled"] = config.voiceFx.enabled;
+        v["preset"] = config.voiceFx.preset;
+        v["pitchSemitones"] = config.voiceFx.pitchSemitones;
+        v["robotEnabled"] = config.voiceFx.robotEnabled;
+        v["robotFreq"] = config.voiceFx.robotFreq;
+        v["radioEnabled"] = config.voiceFx.radioEnabled;
+        v["reverbWet"] = config.voiceFx.reverbWet;
+        v["gateEnabled"] = config.voiceFx.gateEnabled;
+        v["gateThresholdDb"] = config.voiceFx.gateThresholdDb;
+        j["voiceFx"] = v;
+
         json sfxArray = json::array();
         for (const auto& sfx : config.soundEffects) {
             json item;
@@ -181,6 +206,20 @@ AppConfig ConfigManager::extractFromEngine(AudioEngine& engine) {
         if (src->getType() == SourceType::Microphone) {
             s.type = "mic";
             s.id = src->getId();
+
+            auto mic = std::dynamic_pointer_cast<MicCaptureSource>(src);
+            if (mic) {
+                auto& vp = mic->getVoiceProcessor();
+                cfg.voiceFx.enabled = vp.isEnabled();
+                cfg.voiceFx.preset = static_cast<int>(vp.getPreset());
+                cfg.voiceFx.pitchSemitones = vp.getPitchSemitones();
+                cfg.voiceFx.robotEnabled = vp.isRobotEnabled();
+                cfg.voiceFx.robotFreq = vp.getRobotFreq();
+                cfg.voiceFx.radioEnabled = vp.isRadioEnabled();
+                cfg.voiceFx.reverbWet = vp.getReverbWet();
+                cfg.voiceFx.gateEnabled = vp.isNoiseGateEnabled();
+                cfg.voiceFx.gateThresholdDb = vp.getNoiseGateThresholdDb();
+            }
         } else {
             s.type = "app";
             auto appSrc = std::dynamic_pointer_cast<ProcessCaptureSource>(src);
@@ -241,6 +280,19 @@ void ConfigManager::applyToEngine(AudioEngine& engine, const AppConfig& config) 
                     auto mic = std::make_shared<MicCaptureSource>(dev.idUtf8, dev.nameUtf8);
                     mic->setVolume(s.volume);
                     mic->setMuted(s.muted);
+
+                    // Restore Voice FX settings
+                    auto& vp = mic->getVoiceProcessor();
+                    vp.setEnabled(config.voiceFx.enabled);
+                    vp.setPreset(static_cast<VoicePreset>(config.voiceFx.preset));
+                    vp.setPitchSemitones(config.voiceFx.pitchSemitones);
+                    vp.setRobotEnabled(config.voiceFx.robotEnabled);
+                    vp.setRobotFreq(config.voiceFx.robotFreq);
+                    vp.setRadioEnabled(config.voiceFx.radioEnabled);
+                    vp.setReverbWet(config.voiceFx.reverbWet);
+                    vp.setNoiseGateEnabled(config.voiceFx.gateEnabled);
+                    vp.setNoiseGateThresholdDb(config.voiceFx.gateThresholdDb);
+
                     if (mic->start()) {
                         engine.getMixer().addSource(mic);
                     }

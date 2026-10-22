@@ -10,7 +10,7 @@ namespace AudioConfig {
     constexpr uint32_t CHANNELS = 2; // Stereo
     constexpr float DEFAULT_BUFFER_MS = 10.0f;
     constexpr size_t RING_BUFFER_CAPACITY = 32768; // ~682 ms at 48 kHz
-    constexpr size_t TARGET_RING_FILL = 256;       // ~5.3 ms target buffer fill
+    constexpr size_t TARGET_RING_FILL = 192;       // ~4.0 ms ultra-low-latency buffer fill
 }
 
 struct LevelMeter {

@@ -214,8 +214,8 @@ bool ProcessCaptureSource::start() {
         return false;
     }
 
-    // Initialize in loopback shared event-driven mode
-    REFERENCE_TIME hnsBuffer = 200000; // 20 ms buffer
+    // Initialize in loopback shared event-driven mode with minimal latency
+    REFERENCE_TIME hnsBuffer = 50000; // 5 ms low-latency buffer
     hr = m_pAudioClient->Initialize(
         AUDCLNT_SHAREMODE_SHARED,
         AUDCLNT_STREAMFLAGS_LOOPBACK | AUDCLNT_STREAMFLAGS_EVENTCALLBACK,
@@ -224,6 +224,19 @@ bool ProcessCaptureSource::start() {
         m_pWfx,
         nullptr
     );
+
+    if (FAILED(hr)) {
+        // Fallback to 10 ms if 5 ms is rejected by driver
+        hnsBuffer = 100000;
+        hr = m_pAudioClient->Initialize(
+            AUDCLNT_SHAREMODE_SHARED,
+            AUDCLNT_STREAMFLAGS_LOOPBACK | AUDCLNT_STREAMFLAGS_EVENTCALLBACK,
+            hnsBuffer,
+            0,
+            m_pWfx,
+            nullptr
+        );
+    }
 
     if (FAILED(hr)) {
         // Try without AUDCLNT_STREAMFLAGS_LOOPBACK

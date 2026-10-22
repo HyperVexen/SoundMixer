@@ -1,6 +1,7 @@
 #pragma once
 
 #include "AudioSource.h"
+#include "VoiceProcessor.h"
 #include <thread>
 #include <atomic>
 #include <vector>
@@ -21,6 +22,8 @@ public:
     uint32_t getDeviceChannels() const { return m_deviceChannels; }
     uint32_t getBufferPeriodFrames() const { return m_bufferPeriodFrames; }
 
+    VoiceProcessor& getVoiceProcessor() { return m_voiceProcessor; }
+
 private:
     void captureThreadFunc();
     static void convertToStereoFloat(
@@ -29,6 +32,8 @@ private:
         const WAVEFORMATEX* wfx,
         std::vector<float>& outStereo
     );
+
+    VoiceProcessor m_voiceProcessor;
 
     std::wstring m_wideDeviceId;
     std::thread m_thread;

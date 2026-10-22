@@ -23,6 +23,7 @@ private:
     void renderOutputsList();
     void renderMasterSection();
     void renderSoundboardTab();
+    void renderVoiceFxTab();
     void renderAddSourceModal();
     void renderAddOutputModal();
     void renderHotkeyModal();
@@ -33,7 +34,7 @@ private:
 
     AudioEngine& m_engine;
 
-    int m_activeTab = 0; // 0 = Mixer, 1 = Soundboard & Macros
+    int m_activeTab = 0; // 0 = Mixer, 1 = Soundboard & Macros, 2 = Voice FX
 
     bool m_showAddSourceModal = false;
     bool m_showAddOutputModal = false;

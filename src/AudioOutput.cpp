@@ -118,11 +118,12 @@ bool AudioOutput::start() {
         m_pRenderDataClient->ReleaseBuffer(m_totalBufferFrames, 0);
     }
 
-    // Pre-cushion the ring buffer for secondary outputs to avoid initial startup starvation
+    // Pre-cushion the ring buffer for secondary outputs to minimal low-latency target
     m_ringBuffer.flush();
     if (!m_isPrimary.load(std::memory_order_relaxed)) {
-        std::vector<float> startupCushion(1024 * 2, 0.0f);
-        m_ringBuffer.write(startupCushion.data(), 1024);
+        constexpr size_t cushionFrames = AudioConfig::TARGET_RING_FILL;
+        std::vector<float> startupCushion(cushionFrames * 2, 0.0f);
+        m_ringBuffer.write(startupCushion.data(), cushionFrames);
     }
 
     hr = m_pAudioClient->Start();

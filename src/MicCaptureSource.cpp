@@ -308,7 +308,10 @@ void MicCaptureSource::captureThreadFunc() {
                 );
 
                 if (outFrames > 0) {
-                    // Metering (pre-fader)
+                    // Real-Time Voice Modulation (Low-Latency Pitch, Robot, Radio, Reverb, Noise Gate)
+                    m_voiceProcessor.process(resampledStereo.data(), outFrames);
+
+                    // Metering (post-FX)
                     float pL, pR, rL, rR;
                     ComputeStereoLevels(resampledStereo.data(), outFrames, pL, pR, rL, rR);
                     setLevels(pL, pR, rL, rR);

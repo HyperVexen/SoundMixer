@@ -23,6 +23,7 @@ set(APP_SOURCES
     src/AudioFileReader.cpp
     src/SoundEffect.cpp
     src/SoundboardManager.cpp
+    src/VoiceProcessor.cpp
     src/MicCaptureSource.cpp
     src/ProcessCaptureSource.cpp
     src/ProcessEnumerator.cpp
