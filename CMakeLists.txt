@@ -27,6 +27,7 @@ set(APP_SOURCES
     src/MicCaptureSource.cpp
     src/ProcessCaptureSource.cpp
     src/ProcessEnumerator.cpp
+    src/VirtualDeviceBridge.cpp
     src/ConfigManager.cpp
     src/TrayIcon.cpp
     src/UI.cpp

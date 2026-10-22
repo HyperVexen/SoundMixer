@@ -5,6 +5,7 @@
 #include <memory>
 #include "AudioEngine.h"
 #include "ProcessEnumerator.h"
+#include "VirtualDeviceBridge.h"
 
 class SoundMixerUI {
 public:
@@ -33,6 +34,7 @@ private:
     bool renderVolumeFader(const char* str_id, float* pVolume, float width = 140.0f, float height = 22.0f);
 
     AudioEngine& m_engine;
+    VirtualDeviceBridge m_bridge;
 
     int m_activeTab = 0; // 0 = Mixer, 1 = Soundboard & Macros, 2 = Voice FX
 
@@ -40,6 +42,7 @@ private:
     bool m_showAddOutputModal = false;
     bool m_showHotkeyModal = false;
     bool m_showPanicHotkeyModal = false;
+    bool m_showBridgeHelpModal = false;
 
     // Hotkey recording state
     std::string m_hotkeyTargetSfxId;
