@@ -125,8 +125,11 @@ void AudioMixer::processAudioDual(float* outPrimaryBuffer, float* outBroadcastBu
         if (readFrames < clampedFrames) {
             // Buffer underrun on this source
             std::memset(&m_tempSourceBuffer[readFrames * 2], 0, (clampedFrames - readFrames) * 2 * sizeof(float));
-            source->incrementGlitchCount();
-            m_totalGlitches.fetch_add(1, std::memory_order_relaxed);
+            if (readFrames > 0) {
+                // Only count as glitch if actively streaming audio but gave partial frames
+                source->incrementGlitchCount();
+                m_totalGlitches.fetch_add(1, std::memory_order_relaxed);
+            }
         }
 
         // Determine target volume (0.0 if muted)
@@ -167,10 +170,14 @@ void AudioMixer::processAudioDual(float* outPrimaryBuffer, float* outBroadcastBu
         source->setSmoothedGain(endGain);
     }
 
-    // Mix soundboard sound effects into primary headphones and broadcast stream
-    m_soundboard.processAudio(outPrimaryBuffer, clampedFrames);
-    if (outBroadcastBuffer) {
-        m_soundboard.processAudio(outBroadcastBuffer, clampedFrames);
+    // Mix soundboard sound effects ONCE into temp buffer, then distribute to both mixes
+    m_soundboard.processAudio(m_tempSoundboardBuffer, clampedFrames);
+    for (size_t i = 0; i < clampedFrames * 2; ++i) {
+        float sfxSample = m_tempSoundboardBuffer[i];
+        outPrimaryBuffer[i] += sfxSample;
+        if (outBroadcastBuffer) {
+            outBroadcastBuffer[i] += sfxSample;
+        }
     }
 
     // Apply master volume with smooth de-zippering

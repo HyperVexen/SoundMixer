@@ -373,7 +373,7 @@ void SoundMixerUI::renderHeader() {
         ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.20f, 0.24f, 0.30f, 0.9f));
         ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.6f, 0.65f, 0.75f, 1.0f));
     }
-    if (ImGui::Button(sidetoneOn ? "[ 🎧 Hear Voice: ON ]" : "[ 🎧 Hear Voice: OFF ]", ImVec2(150, 24))) {
+    if (ImGui::Button(sidetoneOn ? "[ Hear Voice: ON ]" : "[ Hear Voice: OFF ]", ImVec2(150, 24))) {
         m_engine.getMixer().setSidetoneEnabled(!sidetoneOn);
     }
     ImGui::PopStyleColor(3);
@@ -507,76 +507,25 @@ void SoundMixerUI::renderOutputsList() {
 
     ImGui::Spacing();
 
-    // Virtual Audio Bridge Status & Control Banner
+    // Virtual Audio Bridge Banner - only shown if driver is missing and needs to be installed
     auto bridgeInfo = m_bridge.refreshStatus();
-    ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(0.10f, 0.12f, 0.15f, 0.90f));
-    ImGui::PushStyleVar(ImGuiStyleVar_ChildRounding, 4.0f);
-    ImGui::BeginChild("VirtualBridgeBanner", ImVec2(0, 36), true, ImGuiWindowFlags_NoScrollbar);
-    
-    if (bridgeInfo.status == VirtualBridgeStatus::ActiveAndConnected) {
-        // Connected & Active
+    if (bridgeInfo.status == VirtualBridgeStatus::NotInstalled) {
+        ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(0.14f, 0.10f, 0.10f, 0.90f));
+        ImGui::PushStyleVar(ImGuiStyleVar_ChildRounding, 4.0f);
+        ImGui::BeginChild("VirtualBridgeBanner", ImVec2(0, 36), true, ImGuiWindowFlags_NoScrollbar);
+
         ImGui::AlignTextToFramePadding();
-        ImGui::TextColored(ImVec4(0.2f, 0.95f, 0.55f, 1.0f), "● VIRTUAL MIC BRIDGE: ACTIVE");
+        ImGui::TextColored(ImVec4(0.95f, 0.35f, 0.35f, 1.0f), "[ ! ] NO VIRTUAL MIC DETECTED");
         ImGui::SameLine();
-        ImGui::TextDisabled("| Target in Discord: \"%s\"", bridgeInfo.recordingDevice.nameUtf8.empty() ? bridgeInfo.playbackDevice.nameUtf8.c_str() : bridgeInfo.recordingDevice.nameUtf8.c_str());
-        
-        ImGui::SameLine(ImGui::GetWindowWidth() - 235.0f);
-        if (bridgeInfo.isDefaultCommunicationMic) {
-            ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.12f, 0.38f, 0.25f, 0.8f));
-            ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.35f, 1.0f, 0.65f, 1.0f));
-            ImGui::Button("[ ✓ Default Discord Mic ]", ImVec2(195, 22));
-            ImGui::PopStyleColor(2);
-            if (ImGui::IsItemHovered()) {
-                ImGui::SetTooltip("This virtual microphone is currently the Windows Default Communication Device.\nDiscord, Zoom, Skype, and games will automatically record from it!");
-            }
-        } else {
-            ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.18f, 0.40f, 0.65f, 0.9f));
-            if (ImGui::Button("[ 🎯 Make Default Discord Mic ]", ImVec2(215, 22))) {
-                if (m_bridge.setAsDefaultCommunicationDevice()) {
-                    m_statusMessage = "Set " + bridgeInfo.recordingDevice.nameUtf8 + " as default Discord mic!";
-                    m_statusTimer = 3.5f;
-                }
-            }
-            ImGui::PopStyleColor();
-            if (ImGui::IsItemHovered()) {
-                ImGui::SetTooltip("Click to set '%s' as Windows Default Communication Device.\nDiscord & games will immediately use your modulated voice with no manual setup!",
-                                  bridgeInfo.recordingDevice.nameUtf8.c_str());
-            }
-        }
-    } else if (bridgeInfo.status == VirtualBridgeStatus::InstalledNotConnected) {
-        // Installed in Windows, but not connected in SoundMixer
-        ImGui::AlignTextToFramePadding();
-        ImGui::TextColored(ImVec4(1.0f, 0.8f, 0.25f, 1.0f), "○ VIRTUAL MIC BRIDGE: READY");
-        ImGui::SameLine();
-        ImGui::TextDisabled("(Found: %s)", bridgeInfo.deviceBrand.c_str());
-        
-        ImGui::SameLine(ImGui::GetWindowWidth() - 235.0f);
-        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.15f, 0.50f, 0.35f, 1.0f));
-        if (ImGui::Button("[ ⚡ 1-Click Connect Virtual Mic ]", ImVec2(215, 22))) {
-            if (m_bridge.connectVirtualDevice()) {
-                m_statusMessage = "Connected Virtual Mic Bridge (" + bridgeInfo.playbackDevice.nameUtf8 + ")!";
-                m_statusTimer = 3.5f;
-            }
-        }
-        ImGui::PopStyleColor();
-        if (ImGui::IsItemHovered()) {
-            ImGui::SetTooltip("Automatically add '%s' to outputs in Voice+SFX broadcast mode.\nInstantly routes your voice changer and soundboard to Discord!",
-                              bridgeInfo.playbackDevice.nameUtf8.c_str());
-        }
-    } else {
-        // Not installed
-        ImGui::AlignTextToFramePadding();
-        ImGui::TextColored(ImVec4(0.95f, 0.35f, 0.35f, 1.0f), "⚠️ NO VIRTUAL MIC DETECTED");
-        ImGui::SameLine();
-        ImGui::TextDisabled("| Virtual bridge needed for Discord/games");
+        ImGui::TextDisabled("| Virtual driver needed to route audio to Discord/games");
 
         ImGui::SameLine(ImGui::GetWindowWidth() - 235.0f);
         ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.70f, 0.25f, 0.15f, 1.0f));
         ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.85f, 0.32f, 0.20f, 1.0f));
-        if (ImGui::Button("[ ⚡ 1-Click Install Virtual Mic ]", ImVec2(215, 22))) {
+        if (ImGui::Button("[ Install Virtual Cable Driver ]", ImVec2(220, 22))) {
             std::string errMsg;
             if (m_bridge.installDriver(errMsg)) {
-                m_statusMessage = "Virtual Audio Bridge installed and connected successfully!";
+                m_statusMessage = "Virtual Audio Bridge installed successfully!";
                 m_statusTimer = 4.0f;
             } else {
                 m_statusMessage = "Install: " + errMsg;
@@ -587,12 +536,12 @@ void SoundMixerUI::renderOutputsList() {
         if (ImGui::IsItemHovered()) {
             ImGui::SetTooltip("Silently downloads and installs the WHQL-certified Windows Virtual Audio Cable driver.\nZero external websites needed!");
         }
-    }
 
-    ImGui::EndChild();
-    ImGui::PopStyleVar();
-    ImGui::PopStyleColor();
-    ImGui::Spacing();
+        ImGui::EndChild();
+        ImGui::PopStyleVar();
+        ImGui::PopStyleColor();
+        ImGui::Spacing();
+    }
 
     auto outputs = m_engine.getOutputs();
     if (outputs.empty()) {
@@ -605,9 +554,9 @@ void SoundMixerUI::renderOutputsList() {
 
             ImGui::BeginChild(out->getId().c_str(), ImVec2(0, 68), true, ImGuiWindowFlags_NoScrollbar);
 
-            // Badge: [🎙 FX MIC], [PRIMARY PC], or [OUTPUT PC]
+            // Badge: [FX MIC], [PRIMARY PC], or [OUTPUT PC]
             if (out->getRouteMode() == OutputRouteMode::VirtualMicStream) {
-                ImGui::TextColored(ImVec4(0.2f, 0.95f, 0.55f, 1.00f), "[🎙 FX MIC]");
+                ImGui::TextColored(ImVec4(0.2f, 0.95f, 0.55f, 1.00f), "[FX MIC]");
             } else if (out->isPrimary()) {
                 ImGui::TextColored(ImVec4(0.26f, 0.72f, 1.00f, 1.00f), "[PRIMARY PC]");
             } else {
@@ -678,7 +627,7 @@ void SoundMixerUI::renderOutputsList() {
 
             ImGui::SameLine(295.0f);
 
-            // BUTTON 1: [ 🎙 FX ] - Mic with FX (Voice + SFX for Discord/Games)
+            // BUTTON 1: [ FX ] - Mic with FX (Voice + SFX for Discord/Games)
             if (isVirtualMode) {
                 ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.12f, 0.48f, 0.30f, 1.0f));
                 ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.16f, 0.58f, 0.36f, 1.0f));
@@ -693,20 +642,20 @@ void SoundMixerUI::renderOutputsList() {
                 ImGui::PushStyleColor(ImGuiCol_Border, ImVec4(0.20f, 0.24f, 0.30f, 0.4f));
             }
             ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, isVirtualMode ? 1.5f : 1.0f);
-            if (ImGui::Button("[ 🎙 FX ]##routeMic", ImVec2(76, 22))) {
+            if (ImGui::Button("[ FX ]##routeMic", ImVec2(68, 22))) {
                 out->setRouteMode(OutputRouteMode::VirtualMicStream);
             }
             ImGui::PopStyleVar();
             ImGui::PopStyleColor(5);
             if (ImGui::IsItemHovered()) {
-                ImGui::SetTooltip("🎙 Voice + SFX Stream (Discord / Games / Voicemod)\n"
+                ImGui::SetTooltip("Voice + SFX Stream (Discord / Games / Voicemod)\n"
                                   "Routes ONLY your Mic (with Voice FX) + Soundboard to this device.\n"
-                                  "Desktop PC & game loopback audio is blocked to prevent echo back into Discord/chat.");
+                                  "Desktop PC & game audio is blocked to eliminate echo back into Discord/chat.");
             }
 
             ImGui::SameLine();
 
-            // BUTTON 2: [ 💻 PC ] - PC Desktop Mix (Full mix for Headphones/Speakers)
+            // BUTTON 2: [ PC ] - PC Desktop Mix (Full mix for Headphones/Speakers)
             if (isFullMixMode) {
                 ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.18f, 0.42f, 0.68f, 1.0f));
                 ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.24f, 0.52f, 0.82f, 1.0f));
@@ -721,13 +670,13 @@ void SoundMixerUI::renderOutputsList() {
                 ImGui::PushStyleColor(ImGuiCol_Border, ImVec4(0.20f, 0.24f, 0.30f, 0.4f));
             }
             ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, isFullMixMode ? 1.5f : 1.0f);
-            if (ImGui::Button("[ 💻 PC ]##routePc", ImVec2(76, 22))) {
+            if (ImGui::Button("[ PC ]##routePc", ImVec2(68, 22))) {
                 out->setRouteMode(OutputRouteMode::FullMix);
             }
             ImGui::PopStyleVar();
             ImGui::PopStyleColor(5);
             if (ImGui::IsItemHovered()) {
-                ImGui::SetTooltip("💻 Full PC Desktop Mix (Headphones / Speakers)\n"
+                ImGui::SetTooltip("Full PC Desktop Mix (Headphones / Speakers)\n"
                                   "Routes all PC desktop apps, music, soundboard, and sidetone mic to this device.");
             }
 
@@ -808,54 +757,143 @@ void SoundMixerUI::renderAddOutputModal() {
     ImGui::OpenPopup("Add Output Device");
     ImVec2 center = ImGui::GetMainViewport()->GetCenter();
     ImGui::SetNextWindowPos(center, ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
-    ImGui::SetNextWindowSize(ImVec2(550, 360));
+    ImGui::SetNextWindowSize(ImVec2(600, 390));
 
     if (ImGui::BeginPopupModal("Add Output Device", &m_showAddOutputModal, ImGuiWindowFlags_NoResize)) {
-        ImGui::Text("Select a playback device to route mixed audio to:");
-        ImGui::Spacing();
-
         auto renderDevs = m_engine.getDeviceManager().getRenderDevices();
         auto currentOutputs = m_engine.getOutputs();
 
-        ImGui::BeginChild("OutputDeviceListChild", ImVec2(0, 240), true);
+        if (ImGui::BeginTabBar("AddOutputTabBar")) {
+            if (ImGui::BeginTabItem("Playback Devices (Speakers / Headphones)")) {
+                ImGui::Spacing();
+                ImGui::BeginChild("OutputDeviceListChild", ImVec2(0, 240), true);
 
-        for (size_t i = 0; i < renderDevs.size(); ++i) {
-            const auto& dev = renderDevs[i];
-            ImGui::PushID(static_cast<int>(i));
+                for (size_t i = 0; i < renderDevs.size(); ++i) {
+                    const auto& dev = renderDevs[i];
+                    ImGui::PushID(static_cast<int>(i));
 
-            bool alreadyAdded = false;
-            for (const auto& out : currentOutputs) {
-                if (out->getId() == dev.idUtf8) {
-                    alreadyAdded = true;
-                    break;
+                    bool alreadyAdded = false;
+                    for (const auto& out : currentOutputs) {
+                        if (out->getId() == dev.idUtf8) {
+                            alreadyAdded = true;
+                            break;
+                        }
+                    }
+
+                    if (dev.isVBCable) {
+                        ImGui::TextColored(ImVec4(0.26f, 0.72f, 1.00f, 1.00f), "[VB-CABLE]");
+                        ImGui::SameLine();
+                    } else if (dev.isDefault) {
+                        ImGui::TextColored(ImVec4(0.4f, 0.8f, 0.4f, 1.00f), "[DEFAULT]");
+                        ImGui::SameLine();
+                    }
+
+                    ImGui::Text("%s", dev.nameUtf8.c_str());
+                    ImGui::SameLine(ImGui::GetWindowWidth() - 90.0f);
+
+                    if (alreadyAdded) {
+                        ImGui::TextDisabled("Added");
+                    } else {
+                        if (ImGui::Button("+ Add", ImVec2(75, 22))) {
+                            m_engine.addOutput(dev.idUtf8, dev.nameUtf8);
+                            m_showAddOutputModal = false;
+                        }
+                    }
+
+                    ImGui::Separator();
+                    ImGui::PopID();
                 }
+
+                ImGui::EndChild();
+                ImGui::EndTabItem();
             }
 
-            if (dev.isVBCable) {
-                ImGui::TextColored(ImVec4(0.26f, 0.72f, 1.00f, 1.00f), "[VB-CABLE]");
-                ImGui::SameLine();
-            } else if (dev.isDefault) {
-                ImGui::TextColored(ImVec4(0.4f, 0.8f, 0.4f, 1.00f), "[DEFAULT]");
-                ImGui::SameLine();
-            }
+            if (ImGui::BeginTabItem("Virtual Mics & Inputs (Discord / Games)")) {
+                ImGui::Spacing();
+                ImGui::TextDisabled("Select an input / recording device to stream your Voice FX and Soundboard to:");
+                ImGui::Spacing();
 
-            ImGui::Text("%s", dev.nameUtf8.c_str());
-            ImGui::SameLine(ImGui::GetWindowWidth() - 90.0f);
+                auto captureDevs = m_engine.getDeviceManager().getCaptureDevices();
+                ImGui::BeginChild("VirtualInputDeviceListChild", ImVec2(0, 220), true);
 
-            if (alreadyAdded) {
-                ImGui::TextDisabled("Added");
-            } else {
-                if (ImGui::Button("+ Add", ImVec2(75, 22))) {
-                    m_engine.addOutput(dev.idUtf8, dev.nameUtf8);
-                    m_showAddOutputModal = false;
+                for (size_t i = 0; i < captureDevs.size(); ++i) {
+                    const auto& dev = captureDevs[i];
+                    ImGui::PushID(static_cast<int>(2000 + i));
+
+                    bool isVirtual = dev.isVBCable || (dev.nameUtf8.find("CABLE") != std::string::npos) ||
+                                     (dev.nameUtf8.find("VB-Audio") != std::string::npos) ||
+                                     (dev.nameUtf8.find("Voicemod") != std::string::npos) ||
+                                     (dev.nameUtf8.find("Virtual") != std::string::npos);
+
+                    // Find corresponding render device for virtual cables
+                    std::string targetRenderId;
+                    std::string targetRenderName;
+                    for (const auto& rDev : renderDevs) {
+                        if (rDev.isVBCable || rDev.nameUtf8.find("VB-Audio") != std::string::npos ||
+                            rDev.nameUtf8.find("CABLE") != std::string::npos ||
+                            rDev.nameUtf8.find("Voicemod") != std::string::npos) {
+                            targetRenderId = rDev.idUtf8;
+                            targetRenderName = rDev.nameUtf8;
+                            break;
+                        }
+                    }
+
+                    bool alreadyAdded = false;
+                    for (const auto& out : currentOutputs) {
+                        if (!targetRenderId.empty() && out->getId() == targetRenderId) {
+                            alreadyAdded = true;
+                            break;
+                        }
+                        if (out->getId() == dev.idUtf8 || out->getName() == dev.nameUtf8) {
+                            alreadyAdded = true;
+                            break;
+                        }
+                    }
+
+                    if (isVirtual) {
+                        ImGui::TextColored(ImVec4(0.2f, 0.95f, 0.55f, 1.0f), "[VIRTUAL MIC]");
+                        ImGui::SameLine();
+                        ImGui::Text("%s", dev.nameUtf8.c_str());
+                        ImGui::SameLine(ImGui::GetWindowWidth() - 90.0f);
+
+                        if (alreadyAdded) {
+                            ImGui::TextDisabled("Added");
+                        } else {
+                            if (ImGui::Button("+ Add", ImVec2(75, 22))) {
+                                std::string renderIdToAdd = targetRenderId.empty() ? dev.idUtf8 : targetRenderId;
+                                std::string displayName = dev.nameUtf8;
+                                m_engine.addOutput(renderIdToAdd, displayName);
+                                auto outputs = m_engine.getOutputs();
+                                for (auto& out : outputs) {
+                                    if (out->getId() == renderIdToAdd) {
+                                        out->setRouteMode(OutputRouteMode::VirtualMicStream);
+                                    }
+                                }
+                                m_statusMessage = "Added " + displayName + " as Voice FX output!";
+                                m_statusTimer = 3.5f;
+                                m_showAddOutputModal = false;
+                            }
+                        }
+                    } else {
+                        ImGui::TextColored(ImVec4(0.55f, 0.6f, 0.7f, 1.0f), "[HARDWARE MIC]");
+                        ImGui::SameLine();
+                        ImGui::Text("%s", dev.nameUtf8.c_str());
+                        ImGui::SameLine(ImGui::GetWindowWidth() - 110.0f);
+                        ImGui::TextDisabled("Input Only");
+                        if (ImGui::IsItemHovered()) {
+                            ImGui::SetTooltip("Physical microphones are input devices.\nTo capture your voice, add this under Audio Sources above.");
+                        }
+                    }
+
+                    ImGui::Separator();
+                    ImGui::PopID();
                 }
-            }
 
-            ImGui::Separator();
-            ImGui::PopID();
+                ImGui::EndChild();
+                ImGui::EndTabItem();
+            }
+            ImGui::EndTabBar();
         }
-
-        ImGui::EndChild();
 
         ImGui::Spacing();
         if (ImGui::Button("Close", ImVec2(80, 26))) {
@@ -1206,7 +1244,7 @@ void SoundMixerUI::renderSoundboardTab() {
 
             // 3. Macro Hotkey Trigger Button
             ImGui::SameLine(255.0f);
-            std::string hotkeyStr = sfx->hasHotkey() ? ("⌨ " + sfx->getHotkeyText()) : "⌨ Bind Key...";
+            std::string hotkeyStr = sfx->hasHotkey() ? ("[KEY] " + sfx->getHotkeyText()) : "[+] Bind Key...";
             if (sfx->hasHotkey()) {
                 ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.24f, 0.20f, 0.38f, 0.9f));
                 ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.95f, 0.75f, 0.25f, 1.0f));
@@ -1477,7 +1515,7 @@ void SoundMixerUI::renderVoiceFxTab() {
         ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.20f, 0.24f, 0.30f, 0.9f));
         ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.6f, 0.65f, 0.75f, 1.0f));
     }
-    if (ImGui::Button(sidetoneOn ? "🎧 Sidetone: ON" : "🎧 Sidetone: OFF", ImVec2(130, 24))) {
+    if (ImGui::Button(sidetoneOn ? "[ Sidetone: ON ]" : "[ Sidetone: OFF ]", ImVec2(130, 24))) {
         m_engine.getMixer().setSidetoneEnabled(!sidetoneOn);
     }
     ImGui::PopStyleColor(3);
@@ -1691,13 +1729,13 @@ void SoundMixerUI::renderVoiceFxTab() {
 
     // Preset Action Buttons
     ImGui::TextColored(ImVec4(0.9f, 0.85f, 0.3f, 1.0f), "CUSTOM PRESET CONTROLS");
-    if (ImGui::Button("💾 Save as New Preset", ImVec2(165, 26))) {
+    if (ImGui::Button("[+] Save as New Preset", ImVec2(165, 26))) {
         m_showNewPresetModal = true;
     }
     if (m_selectedCustomPresetIdx >= 0 && m_selectedCustomPresetIdx < static_cast<int>(m_customPresets.size())) {
         ImGui::SameLine();
         auto& curCp = m_customPresets[m_selectedCustomPresetIdx];
-        if (ImGui::Button("🔄 Update##curPreset", ImVec2(75, 26))) {
+        if (ImGui::Button("Update##curPreset", ImVec2(75, 26))) {
             curCp = vp.exportCurrentPreset(curCp.id, curCp.name, curCp.description);
             m_statusMessage = "Updated preset: " + curCp.name;
             m_statusTimer = 3.0f;
@@ -1705,7 +1743,7 @@ void SoundMixerUI::renderVoiceFxTab() {
         if (ImGui::IsItemHovered()) ImGui::SetTooltip("Overwrite '%s' with current slider settings", curCp.name.c_str());
 
         ImGui::SameLine();
-        if (ImGui::Button("🗑️ Delete##curPreset", ImVec2(75, 26))) {
+        if (ImGui::Button("Delete##curPreset", ImVec2(75, 26))) {
             m_customPresets.erase(m_customPresets.begin() + m_selectedCustomPresetIdx);
             m_selectedCustomPresetIdx = -1;
             vp.setPreset(VoicePreset::Clean);
@@ -1736,9 +1774,9 @@ void SoundMixerUI::renderVoiceFxTab() {
 
         bool isOpen = vp.isGateOpen();
         if (isOpen) {
-            ImGui::TextColored(ImVec4(0.2f, 1.0f, 0.4f, 1.0f), "● Gate Open (Voice Passing)");
+            ImGui::TextColored(ImVec4(0.2f, 1.0f, 0.4f, 1.0f), "[OPEN] Voice Passing");
         } else {
-            ImGui::TextColored(ImVec4(0.5f, 0.5f, 0.5f, 1.0f), "○ Gate Closed (Noise Muted)");
+            ImGui::TextColored(ImVec4(0.5f, 0.5f, 0.5f, 1.0f), "[MUTED] Background Noise Blocked");
         }
     }
 
@@ -1833,9 +1871,9 @@ void SoundMixerUI::renderVoiceFxTab() {
     ImGui::Spacing();
 
     ImGui::TextColored(ImVec4(0.9f, 0.85f, 0.3f, 1.0f), "GLOBAL MACROS");
-    ImGui::TextDisabled("• Ctrl+1 .. Ctrl+7: Voice Presets");
-    ImGui::TextDisabled("• Ctrl+Shift+M: Mute/Unmute Mic");
-    ImGui::TextDisabled("• Ctrl+Shift+H: Sidetone Monitor");
+    ImGui::TextDisabled("- Ctrl+1 .. Ctrl+7: Voice Presets");
+    ImGui::TextDisabled("- Ctrl+Shift+M: Mute/Unmute Mic");
+    ImGui::TextDisabled("- Ctrl+Shift+H: Sidetone Monitor");
 
     ImGui::Columns(1);
     ImGui::EndChild();

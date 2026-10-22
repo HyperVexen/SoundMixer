@@ -46,6 +46,7 @@ private:
     // Fast copy of secondary outputs for audio thread callback (no lock contention)
     std::vector<std::shared_ptr<AudioOutput>> m_secondaryOutputsSnapshot;
 
+    alignas(64) float m_primaryBuffer[8192 * 2];
     alignas(64) float m_broadcastBuffer[8192 * 2];
 
     std::atomic<bool> m_running{false};

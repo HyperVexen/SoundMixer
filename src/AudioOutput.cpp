@@ -128,10 +128,10 @@ bool AudioOutput::start() {
         m_pRenderDataClient->ReleaseBuffer(m_totalBufferFrames, 0);
     }
 
-    // Pre-cushion the ring buffer for secondary outputs to minimal low-latency target
+    // Pre-cushion the ring buffer for secondary outputs to guarantee glitch-free inter-device sync
     m_ringBuffer.flush();
     if (!m_isPrimary.load(std::memory_order_relaxed)) {
-        constexpr size_t cushionFrames = AudioConfig::TARGET_RING_FILL;
+        size_t cushionFrames = (std::max)(static_cast<size_t>(960), static_cast<size_t>(m_bufferPeriodFrames * 4));
         std::vector<float> startupCushion(cushionFrames * 2, 0.0f);
         m_ringBuffer.write(startupCushion.data(), cushionFrames);
     }
@@ -292,10 +292,10 @@ void AudioOutput::renderThreadFunc() {
                 } else {
                     // Secondary output pulls from its own ring buffer
                     size_t queued = m_ringBuffer.getAvailableRead();
-                    if (queued > 1024) {
-                        // Maintain lowest latency by trimming backed up frames
-                        size_t discard = queued - 512;
-                        m_ringBuffer.read(m_scratchStereo.data(), (std::min)(discard, (size_t)256));
+                    if (queued > 4800) {
+                        // Maintain stable latency by gently trimming if backed up beyond 100ms
+                        size_t discard = queued - 1440;
+                        m_ringBuffer.read(m_scratchStereo.data(), (std::min)(discard, (size_t)512));
                     }
 
                     size_t read = m_ringBuffer.read(m_scratchStereo.data(), framesAvailable);

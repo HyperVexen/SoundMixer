@@ -102,4 +102,5 @@ private:
 
     // Pre-allocated scratch buffers for audio thread to avoid allocations
     alignas(64) float m_tempSourceBuffer[8192 * 2];
+    alignas(64) float m_tempSoundboardBuffer[8192 * 2];
 };

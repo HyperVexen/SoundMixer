@@ -73,17 +73,27 @@ void AudioEngine::onPrimaryNeedAudio(float* outStereoBuffer, UINT32 frameCount) 
     size_t clamped = (std::min)(static_cast<size_t>(frameCount), sizeof(m_broadcastBuffer) / (2 * sizeof(float)));
 
     // 1. Dual-bus real-time mixing:
-    // outStereoBuffer = Primary Headphone mix (Apps + Soundboard + Sidetone Mic if enabled)
-    // m_broadcastBuffer = Broadcast Virtual Mic mix (Mic with Voice FX + Soundboard)
-    m_mixer.processAudioDual(outStereoBuffer, m_broadcastBuffer, clamped);
+    // m_primaryBuffer = PC Desktop Mix (Apps + Soundboard + Sidetone Mic if enabled)
+    // m_broadcastBuffer = Broadcast Virtual Mic Mix (Mic with Voice FX + Soundboard)
+    m_mixer.processAudioDual(m_primaryBuffer, m_broadcastBuffer, clamped);
 
-    // 2. Route to secondary outputs based on their selected route mode
+    // 2. Route to primary output based on its own route mode ([FX] vs [PC])
+    auto primary = getPrimaryOutput();
+    OutputRouteMode primMode = primary ? primary->getRouteMode() : OutputRouteMode::FullMix;
+
+    if (primMode == OutputRouteMode::VirtualMicStream) {
+        std::memcpy(outStereoBuffer, m_broadcastBuffer, clamped * 2 * sizeof(float));
+    } else {
+        std::memcpy(outStereoBuffer, m_primaryBuffer, clamped * 2 * sizeof(float));
+    }
+
+    // 3. Route to secondary outputs based on each secondary output's selected route mode
     for (const auto& sec : m_secondaryOutputsSnapshot) {
         if (sec && sec->isRunning()) {
             if (sec->getRouteMode() == OutputRouteMode::VirtualMicStream) {
                 sec->pushFrames(m_broadcastBuffer, clamped);
             } else {
-                sec->pushFrames(outStereoBuffer, clamped);
+                sec->pushFrames(m_primaryBuffer, clamped);
             }
         }
     }

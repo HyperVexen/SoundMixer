@@ -105,6 +105,17 @@ bool AudioFileReader::loadViaMediaFoundation(const std::wstring& widePath,
         return false;
     }
 
+    IMFMediaType* pActualType = nullptr;
+    UINT32 actualChannels = 2;
+    UINT32 actualSampleRate = 48000;
+    if (SUCCEEDED(pReader->GetCurrentMediaType((DWORD)MF_SOURCE_READER_FIRST_AUDIO_STREAM, &pActualType)) && pActualType) {
+        pActualType->GetUINT32(MF_MT_AUDIO_NUM_CHANNELS, &actualChannels);
+        pActualType->GetUINT32(MF_MT_AUDIO_SAMPLES_PER_SECOND, &actualSampleRate);
+        pActualType->Release();
+    }
+
+    std::vector<float> decodedPcm;
+
     // Read audio samples until end of stream
     while (true) {
         DWORD streamIndex = 0;
@@ -126,7 +137,7 @@ bool AudioFileReader::loadViaMediaFoundation(const std::wstring& widePath,
                 if (SUCCEEDED(pBuffer->Lock(&pData, nullptr, &currentLength)) && pData) {
                     size_t floatCount = currentLength / sizeof(float);
                     const float* pFloats = reinterpret_cast<const float*>(pData);
-                    outStereoPcm48k.insert(outStereoPcm48k.end(), pFloats, pFloats + floatCount);
+                    decodedPcm.insert(decodedPcm.end(), pFloats, pFloats + floatCount);
                     pBuffer->Unlock();
                 }
                 pBuffer->Release();
@@ -136,6 +147,47 @@ bool AudioFileReader::loadViaMediaFoundation(const std::wstring& widePath,
     }
 
     pReader->Release();
+    if (decodedPcm.empty()) return false;
+
+    // Convert to stereo if decoded as mono
+    std::vector<float> nativeStereo;
+    if (actualChannels == 1) {
+        nativeStereo.resize(decodedPcm.size() * 2);
+        for (size_t i = 0; i < decodedPcm.size(); ++i) {
+            nativeStereo[i * 2 + 0] = decodedPcm[i];
+            nativeStereo[i * 2 + 1] = decodedPcm[i];
+        }
+    } else if (actualChannels == 2) {
+        nativeStereo = std::move(decodedPcm);
+    } else {
+        size_t frames = decodedPcm.size() / actualChannels;
+        nativeStereo.resize(frames * 2);
+        for (size_t f = 0; f < frames; ++f) {
+            nativeStereo[f * 2 + 0] = decodedPcm[f * actualChannels + 0];
+            nativeStereo[f * 2 + 1] = decodedPcm[f * actualChannels + 1];
+        }
+    }
+
+    // Resample to 48000 Hz if needed
+    if (actualSampleRate == 48000) {
+        outStereoPcm48k = std::move(nativeStereo);
+    } else {
+        size_t inFrames = nativeStereo.size() / 2;
+        double ratio = 48000.0 / static_cast<double>(actualSampleRate);
+        size_t outFrames = static_cast<size_t>(inFrames * ratio);
+        outStereoPcm48k.resize(outFrames * 2);
+
+        for (size_t i = 0; i < outFrames; ++i) {
+            double srcIdx = static_cast<double>(i) / ratio;
+            size_t idx0 = static_cast<size_t>(srcIdx);
+            size_t idx1 = (std::min)(idx0 + 1, inFrames - 1);
+            float frac = static_cast<float>(srcIdx - idx0);
+
+            outStereoPcm48k[i * 2 + 0] = nativeStereo[idx0 * 2 + 0] * (1.0f - frac) + nativeStereo[idx1 * 2 + 0] * frac;
+            outStereoPcm48k[i * 2 + 1] = nativeStereo[idx0 * 2 + 1] * (1.0f - frac) + nativeStereo[idx1 * 2 + 1] * frac;
+        }
+    }
+
     return !outStereoPcm48k.empty();
 }
 
