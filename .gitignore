@@ -1,0 +1,35 @@
+# Build directories
+build/
+bin/
+obj/
+out/
+x64/
+x86/
+ARM64/
+
+# Visual Studio / IDE
+.vs/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+.idea/
+.vscode/
+
+# Local application state / user configuration
+soundmixer_config.json
+
+# Temporary files & logs
+*.log
+*.tlog
+*.tmp
+*.pdb
+*.ilk
+*.obj
+*.exe
+*.dll
+*.lib
+*.exp
+
+# Except third party libraries if needed
+!third_party/**
