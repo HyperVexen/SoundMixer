@@ -166,6 +166,9 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow) {
 
     // Create UI Controller
     SoundMixerUI ui(audioEngine);
+    if (!savedConfig.customPresets.empty()) {
+        ui.setCustomPresets(savedConfig.customPresets);
+    }
 
     // Main loop
     bool done = false;
@@ -217,6 +220,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow) {
 
     // Auto-save configuration on exit
     auto finalConfig = ConfigManager::extractFromEngine(audioEngine);
+    finalConfig.customPresets = ui.getCustomPresets();
     ConfigManager::saveConfig(configPath, finalConfig);
 
     audioEngine.getSoundboard().unregisterHotkeys(hwnd);

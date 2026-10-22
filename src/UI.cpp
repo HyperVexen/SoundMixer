@@ -384,6 +384,7 @@ void SoundMixerUI::renderHeader() {
     ImGui::SameLine();
     if (ImGui::Button("Save Config", ImVec2(90, 24))) {
         auto cfg = ConfigManager::extractFromEngine(m_engine);
+        cfg.customPresets = m_customPresets;
         if (ConfigManager::saveConfig(ConfigManager::getDefaultConfigPath(), cfg)) {
             m_statusMessage = "Configuration saved successfully!";
             m_statusTimer = 3.0f;
@@ -1505,8 +1506,12 @@ void SoundMixerUI::renderVoiceFxTab() {
     ImGui::EndChild();
 
     // Preset selection cards
-    ImGui::BeginChild("VoiceFxPresetsChild", ImVec2(0, 96), true);
-    ImGui::TextColored(ImVec4(0.9f, 0.9f, 0.9f, 1.0f), "VOICE PRESETS (GLOBAL MACROS)");
+    ImGui::BeginChild("VoiceFxPresetsChild", ImVec2(0, 105), true, ImGuiWindowFlags_HorizontalScrollbar);
+    ImGui::TextColored(ImVec4(0.9f, 0.9f, 0.9f, 1.0f), "VOICE PRESETS & PROFILES");
+    ImGui::SameLine(ImGui::GetWindowWidth() - 170.0f);
+    if (ImGui::Button("+ New Custom Preset", ImVec2(150, 22))) {
+        m_showNewPresetModal = true;
+    }
     ImGui::Spacing();
 
     struct PresetInfo {
@@ -1516,20 +1521,23 @@ void SoundMixerUI::renderVoiceFxTab() {
         const char* hotkey;
     };
     PresetInfo presets[] = {
-        { VoicePreset::Clean,      "Clean",         "Natural",      "Ctrl+1" },
-        { VoicePreset::DeepDemon,  "Deep Demon",    "-7 st Deep",   "Ctrl+2" },
-        { VoicePreset::Chipmunk,   "Chipmunk",      "+8.5 st High", "Ctrl+3" },
-        { VoicePreset::Robot,      "Robot",         "110Hz Ring",   "Ctrl+4" },
-        { VoicePreset::Radio,      "Walkie-Talkie", "Bandpass",     "Ctrl+5" },
-        { VoicePreset::CaveReverb, "Cathedral",     "Echo Space",   "Ctrl+6" },
-        { VoicePreset::Alien,      "Alien",         "Modulated",    "Ctrl+7" }
+        { VoicePreset::Clean,           "Clean",         "Natural",       "Ctrl+1" },
+        { VoicePreset::DeepDemon,       "Deep Demon",    "-7 st Deep",    "Ctrl+2" },
+        { VoicePreset::Chipmunk,        "Chipmunk",      "+8.5 st High",  "Ctrl+3" },
+        { VoicePreset::Robot,           "Robot",         "110Hz Ring",    "Ctrl+4" },
+        { VoicePreset::Radio,           "Walkie-Talkie", "Bandpass",      "Ctrl+5" },
+        { VoicePreset::CaveReverb,      "Cathedral",     "Echo Space",    "Ctrl+6" },
+        { VoicePreset::Alien,           "Alien",         "Modulated",     "Ctrl+7" },
+        { VoicePreset::StudioBroadcast, "Studio Mic",    "Comp + EQ",     "Broadcast" },
+        { VoicePreset::FemaleVoice,     "Female Voice",  "+4st Pitch/Fmt","Natural" },
+        { VoicePreset::DeepRadioHost,   "Deep Radio",    "Baritone Host", "Rich Bass" }
     };
 
     VoicePreset curPreset = vp.getPreset();
     for (size_t i = 0; i < sizeof(presets) / sizeof(presets[0]); ++i) {
         if (i > 0) ImGui::SameLine();
-        bool isSelected = (curPreset == presets[i].preset && vp.isEnabled());
-        if (presets[i].preset == VoicePreset::Clean && !vp.isEnabled()) {
+        bool isSelected = (curPreset == presets[i].preset && vp.isEnabled() && m_selectedCustomPresetIdx == -1);
+        if (presets[i].preset == VoicePreset::Clean && !vp.isEnabled() && m_selectedCustomPresetIdx == -1) {
             isSelected = true;
         }
 
@@ -1547,6 +1555,7 @@ void SoundMixerUI::renderVoiceFxTab() {
         char btnId[96];
         snprintf(btnId, sizeof(btnId), "%s\n%s\n[%s]##preset_%zu", presets[i].label, presets[i].desc, presets[i].hotkey, i);
         if (ImGui::Button(btnId, ImVec2(98, 56))) {
+            m_selectedCustomPresetIdx = -1;
             vp.setPreset(presets[i].preset);
         }
         ImGui::PopStyleVar();
@@ -1555,15 +1564,46 @@ void SoundMixerUI::renderVoiceFxTab() {
             ImGui::SetTooltip("Switch to %s voice preset (Global Hotkey: %s)", presets[i].label, presets[i].hotkey);
         }
     }
+
+    // Render User Custom Presets
+    for (size_t c = 0; c < m_customPresets.size(); ++c) {
+        ImGui::SameLine();
+        auto& cp = m_customPresets[c];
+        bool isSelected = (curPreset == VoicePreset::Custom && m_selectedCustomPresetIdx == static_cast<int>(c));
+
+        if (isSelected) {
+            ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.38f, 0.20f, 0.58f, 1.0f));
+            ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.48f, 0.26f, 0.72f, 1.0f));
+            ImGui::PushStyleColor(ImGuiCol_Border, ImVec4(0.80f, 0.45f, 1.0f, 1.0f));
+        } else {
+            ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.16f, 0.13f, 0.22f, 0.8f));
+            ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.24f, 0.18f, 0.32f, 1.0f));
+            ImGui::PushStyleColor(ImGuiCol_Border, ImVec4(0.35f, 0.25f, 0.45f, 0.5f));
+        }
+
+        ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, isSelected ? 1.5f : 1.0f);
+        char cpBtnId[128];
+        snprintf(cpBtnId, sizeof(cpBtnId), "%s\n%s\n[Custom]##cp_%zu", cp.name.c_str(), cp.description.c_str(), c);
+        if (ImGui::Button(cpBtnId, ImVec2(104, 56))) {
+            m_selectedCustomPresetIdx = static_cast<int>(c);
+            vp.applyCustomPreset(cp);
+        }
+        ImGui::PopStyleVar();
+        ImGui::PopStyleColor(3);
+        if (ImGui::IsItemHovered()) {
+            ImGui::SetTooltip("Custom Profile: %s\n%s", cp.name.c_str(), cp.description.c_str());
+        }
+    }
+
     ImGui::EndChild();
 
     // Fine-tuning parameters panel
     ImGui::BeginChild("VoiceFxParamsChild", ImVec2(0, 0), true);
     ImGui::Columns(2, "VoiceFxCols", false);
-    ImGui::SetColumnWidth(0, ImGui::GetWindowWidth() * 0.55f);
+    ImGui::SetColumnWidth(0, ImGui::GetWindowWidth() * 0.53f);
 
-    // Left Column: Pitch & Modulation
-    ImGui::TextColored(ImVec4(0.26f, 0.72f, 1.00f, 1.0f), "DSP MODULATION CONTROLS");
+    // Left Column: Pitch, Formants & Modulation
+    ImGui::TextColored(ImVec4(0.26f, 0.72f, 1.00f, 1.0f), "DSP MODULATION & PITCH");
     ImGui::Spacing();
 
     // Pitch Slider
@@ -1579,6 +1619,34 @@ void SoundMixerUI::renderVoiceFxTab() {
     if (ImGui::SmallButton("Reset##pitch")) {
         vp.setPitchSemitones(0.0f);
     }
+
+    // Formant Shifter (Vocal Tract Resonance)
+    float formant = vp.getFormantSemitones();
+    char fmtBuf[64];
+    snprintf(fmtBuf, sizeof(fmtBuf), "%.1f st", formant);
+    ImGui::Text("Formant / Vocal Tract Resonance: %s", fmtBuf);
+    if (ImGui::SliderFloat("##formantSlider", &formant, -8.0f, 8.0f, "%.1f st")) {
+        vp.setFormantSemitones(formant);
+        if (!vp.isEnabled()) vp.setEnabled(true);
+    }
+    ImGui::SameLine();
+    if (ImGui::SmallButton("Reset##fmt")) {
+        vp.setFormantSemitones(0.0f);
+    }
+    if (ImGui::IsItemHovered()) {
+        ImGui::SetTooltip("Vocal Tract Shifter:\nChanges perceived throat size, age, and gender without changing pitch!\nNo chipmunk artifacts.");
+    }
+
+    // Quick Formant Presets
+    ImGui::TextDisabled("Quick Formant:");
+    ImGui::SameLine();
+    if (ImGui::SmallButton("Deep Male (-2.5)")) { vp.setFormantSemitones(-2.5f); if (!vp.isEnabled()) vp.setEnabled(true); }
+    ImGui::SameLine();
+    if (ImGui::SmallButton("Natural (0)")) { vp.setFormantSemitones(0.0f); }
+    ImGui::SameLine();
+    if (ImGui::SmallButton("Female (+3.0)")) { vp.setFormantSemitones(3.0f); if (!vp.isEnabled()) vp.setEnabled(true); }
+    ImGui::SameLine();
+    if (ImGui::SmallButton("Child (+4.5)")) { vp.setFormantSemitones(4.5f); if (!vp.isEnabled()) vp.setEnabled(true); }
 
     ImGui::Spacing();
     ImGui::Separator();
@@ -1610,17 +1678,47 @@ void SoundMixerUI::renderVoiceFxTab() {
 
     // Reverb
     float reverb = vp.getReverbWet();
-    ImGui::Text("Space / Reverb Mix: %.0f%%", reverb * 100.0f);
+    ImGui::Text("Space / Cavern Reverb Mix: %.0f%%", reverb * 100.0f);
     float revVal = reverb;
     if (ImGui::SliderFloat("##reverbSlider", &revVal, 0.0f, 0.85f, "%.2f")) {
         vp.setReverbWet(revVal);
         if (revVal > 0.0f && !vp.isEnabled()) vp.setEnabled(true);
     }
 
+    ImGui::Spacing();
+    ImGui::Separator();
+    ImGui::Spacing();
+
+    // Preset Action Buttons
+    ImGui::TextColored(ImVec4(0.9f, 0.85f, 0.3f, 1.0f), "CUSTOM PRESET CONTROLS");
+    if (ImGui::Button("💾 Save as New Preset", ImVec2(165, 26))) {
+        m_showNewPresetModal = true;
+    }
+    if (m_selectedCustomPresetIdx >= 0 && m_selectedCustomPresetIdx < static_cast<int>(m_customPresets.size())) {
+        ImGui::SameLine();
+        auto& curCp = m_customPresets[m_selectedCustomPresetIdx];
+        if (ImGui::Button("🔄 Update##curPreset", ImVec2(75, 26))) {
+            curCp = vp.exportCurrentPreset(curCp.id, curCp.name, curCp.description);
+            m_statusMessage = "Updated preset: " + curCp.name;
+            m_statusTimer = 3.0f;
+        }
+        if (ImGui::IsItemHovered()) ImGui::SetTooltip("Overwrite '%s' with current slider settings", curCp.name.c_str());
+
+        ImGui::SameLine();
+        if (ImGui::Button("🗑️ Delete##curPreset", ImVec2(75, 26))) {
+            m_customPresets.erase(m_customPresets.begin() + m_selectedCustomPresetIdx);
+            m_selectedCustomPresetIdx = -1;
+            vp.setPreset(VoicePreset::Clean);
+            m_statusMessage = "Deleted custom preset";
+            m_statusTimer = 3.0f;
+        }
+        if (ImGui::IsItemHovered()) ImGui::SetTooltip("Delete '%s'", curCp.name.c_str());
+    }
+
     ImGui::NextColumn();
 
-    // Right Column: Noise Gate & Low Latency Indicators
-    ImGui::TextColored(ImVec4(0.26f, 0.72f, 1.00f, 1.0f), "DYNAMICS & LATENCY");
+    // Right Column: Noise Gate, Broadcast Compressor & Studio EQ
+    ImGui::TextColored(ImVec4(0.26f, 0.72f, 1.00f, 1.0f), "STUDIO VOCAL DYNAMICS & EQUALIZER");
     ImGui::Spacing();
 
     // Smart Noise Gate
@@ -1648,11 +1746,87 @@ void SoundMixerUI::renderVoiceFxTab() {
     ImGui::Separator();
     ImGui::Spacing();
 
-    ImGui::TextColored(ImVec4(0.9f, 0.85f, 0.3f, 1.0f), "LATENCY SPECS");
-    ImGui::TextDisabled("• DSP Engine: Time-Domain Granular (WSOLA)");
-    ImGui::TextDisabled("• Algorithmic Delay: < 5 ms");
-    ImGui::TextDisabled("• Memory Allocation: 0 bytes in audio loop");
-    ImGui::TextDisabled("• WASAPI Stream: Shared Mode Event-Driven");
+    // Broadcast Vocal Compressor
+    bool compOn = vp.isCompressorEnabled();
+    if (ImGui::Checkbox("Broadcast Vocal Compressor (Studio Punch)", &compOn)) {
+        vp.setCompressorEnabled(compOn);
+        if (compOn && !vp.isEnabled()) vp.setEnabled(true);
+    }
+
+    if (compOn) {
+        float compThresh = vp.getCompressorThresholdDb();
+        ImGui::Text("Threshold: %.0f dB", compThresh);
+        if (ImGui::SliderFloat("##compThresh", &compThresh, -40.0f, 0.0f, "%.0f dB")) {
+            vp.setCompressorThresholdDb(compThresh);
+        }
+
+        float compRatio = vp.getCompressorRatio();
+        ImGui::Text("Ratio: %.1f:1", compRatio);
+        if (ImGui::SliderFloat("##compRatio", &compRatio, 1.0f, 8.0f, "%.1f:1")) {
+            vp.setCompressorRatio(compRatio);
+        }
+
+        float compMakeup = vp.getCompressorMakeupGainDb();
+        ImGui::Text("Makeup Gain: %+.1f dB", compMakeup);
+        if (ImGui::SliderFloat("##compMakeup", &compMakeup, 0.0f, 12.0f, "%+.1f dB")) {
+            vp.setCompressorMakeupGainDb(compMakeup);
+        }
+
+        // Live Gain Reduction readout & meter
+        float grDb = vp.getGainReductionDb();
+        ImGui::AlignTextToFramePadding();
+        ImGui::TextDisabled("Gain Reduction: %4.1f dB", grDb);
+        ImGui::SameLine();
+        float normGr = (std::min)(1.0f, (std::max)(0.0f, grDb / 18.0f));
+        ImVec2 grPos = ImGui::GetCursorScreenPos();
+        ImDrawList* dl = ImGui::GetWindowDrawList();
+        float barW = 120.0f;
+        float barH = 16.0f;
+        dl->AddRectFilled(grPos, ImVec2(grPos.x + barW, grPos.y + barH), IM_COL32(20, 22, 28, 255), 2.0f);
+        if (normGr > 0.01f) {
+            dl->AddRectFilled(ImVec2(grPos.x + barW - barW * normGr, grPos.y + 1.0f),
+                              ImVec2(grPos.x + barW, grPos.y + barH - 1.0f),
+                              IM_COL32(245, 158, 11, 230), 2.0f);
+        }
+        ImGui::Dummy(ImVec2(barW, barH));
+    }
+
+    ImGui::Spacing();
+    ImGui::Separator();
+    ImGui::Spacing();
+
+    // 3-Band Parametric Studio Equalizer (EQ)
+    bool eqOn = vp.isEqEnabled();
+    if (ImGui::Checkbox("3-Band Studio Parametric Equalizer", &eqOn)) {
+        vp.setEqEnabled(eqOn);
+        if (eqOn && !vp.isEnabled()) vp.setEnabled(true);
+    }
+
+    if (eqOn) {
+        float lowGain = vp.getEqLowGainDb();
+        ImGui::Text("Low Shelf / Warmth (120 Hz): %+.1f dB", lowGain);
+        if (ImGui::SliderFloat("##eqLow", &lowGain, -12.0f, 12.0f, "%+.1f dB")) {
+            vp.setEqLowGainDb(lowGain);
+        }
+        ImGui::SameLine();
+        if (ImGui::SmallButton("0dB##eqLow")) vp.setEqLowGainDb(0.0f);
+
+        float midGain = vp.getEqMidGainDb();
+        ImGui::Text("Mid Peak / Presence (2.2 kHz): %+.1f dB", midGain);
+        if (ImGui::SliderFloat("##eqMid", &midGain, -12.0f, 12.0f, "%+.1f dB")) {
+            vp.setEqMidGainDb(midGain);
+        }
+        ImGui::SameLine();
+        if (ImGui::SmallButton("0dB##eqMid")) vp.setEqMidGainDb(0.0f);
+
+        float highGain = vp.getEqHighGainDb();
+        ImGui::Text("High Shelf / Air (7.5 kHz): %+.1f dB", highGain);
+        if (ImGui::SliderFloat("##eqHigh", &highGain, -12.0f, 12.0f, "%+.1f dB")) {
+            vp.setEqHighGainDb(highGain);
+        }
+        ImGui::SameLine();
+        if (ImGui::SmallButton("0dB##eqHigh")) vp.setEqHighGainDb(0.0f);
+    }
 
     ImGui::Spacing();
     ImGui::Separator();
@@ -1665,6 +1839,55 @@ void SoundMixerUI::renderVoiceFxTab() {
 
     ImGui::Columns(1);
     ImGui::EndChild();
+}
+
+void SoundMixerUI::renderNewPresetModal(const std::shared_ptr<MicCaptureSource>& activeMic) {
+    if (!m_showNewPresetModal) return;
+
+    ImGui::OpenPopup("Create Custom Voice Preset");
+    ImVec2 center = ImGui::GetMainViewport()->GetCenter();
+    ImGui::SetNextWindowPos(center, ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
+    ImGui::SetNextWindowSize(ImVec2(440, 240));
+
+    if (ImGui::BeginPopupModal("Create Custom Voice Preset", &m_showNewPresetModal, ImGuiWindowFlags_NoResize)) {
+        ImGui::TextColored(ImVec4(0.26f, 0.72f, 1.00f, 1.0f), "SAVE CURRENT SETTINGS AS NEW PRESET");
+        ImGui::Spacing();
+
+        ImGui::Text("Preset Name:");
+        ImGui::SetNextItemWidth(-1);
+        ImGui::InputText("##newPresetName", m_newPresetName, sizeof(m_newPresetName));
+
+        ImGui::Spacing();
+        ImGui::Text("Description:");
+        ImGui::SetNextItemWidth(-1);
+        ImGui::InputText("##newPresetDesc", m_newPresetDesc, sizeof(m_newPresetDesc));
+
+        ImGui::Spacing();
+        ImGui::Separator();
+        ImGui::Spacing();
+
+        if (ImGui::Button("Save Preset", ImVec2(120, 28))) {
+            if (activeMic) {
+                auto& vp = activeMic->getVoiceProcessor();
+                std::string id = "preset_" + std::to_string(time(nullptr));
+                auto preset = vp.exportCurrentPreset(id, m_newPresetName, m_newPresetDesc);
+                m_customPresets.push_back(preset);
+                m_selectedCustomPresetIdx = static_cast<int>(m_customPresets.size()) - 1;
+                vp.setPreset(VoicePreset::Custom);
+
+                m_statusMessage = "Created voice preset: " + std::string(m_newPresetName);
+                m_statusTimer = 3.5f;
+            }
+            m_showNewPresetModal = false;
+        }
+
+        ImGui::SameLine();
+        if (ImGui::Button("Cancel", ImVec2(80, 28))) {
+            m_showNewPresetModal = false;
+        }
+
+        ImGui::EndPopup();
+    }
 }
 
 void SoundMixerUI::render() {
@@ -1694,10 +1917,20 @@ void SoundMixerUI::render() {
         renderSoundboardTab();
     }
 
+    auto sources = m_engine.getMixer().getSources();
+    std::shared_ptr<MicCaptureSource> activeMic = nullptr;
+    for (auto& s : sources) {
+        if (s->getType() == SourceType::Microphone) {
+            activeMic = std::dynamic_pointer_cast<MicCaptureSource>(s);
+            if (activeMic) break;
+        }
+    }
+
     renderAddSourceModal();
     renderAddOutputModal();
     renderHotkeyModal();
     renderPanicHotkeyModal();
+    renderNewPresetModal(activeMic);
 
     ImGui::End();
 }

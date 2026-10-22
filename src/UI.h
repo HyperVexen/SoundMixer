@@ -6,6 +6,8 @@
 #include "AudioEngine.h"
 #include "ProcessEnumerator.h"
 #include "VirtualDeviceBridge.h"
+#include "VoiceProcessor.h"
+#include "MicCaptureSource.h"
 
 class SoundMixerUI {
 public:
@@ -18,6 +20,9 @@ public:
     bool shouldMinimizeToTray() const { return m_minimizeToTrayRequested; }
     void clearMinimizeToTrayRequest() { m_minimizeToTrayRequested = false; }
 
+    void setCustomPresets(const std::vector<CustomVoicePreset>& presets) { m_customPresets = presets; }
+    const std::vector<CustomVoicePreset>& getCustomPresets() const { return m_customPresets; }
+
 private:
     void renderHeader();
     void renderSourceList();
@@ -29,6 +34,7 @@ private:
     void renderAddOutputModal();
     void renderHotkeyModal();
     void renderPanicHotkeyModal();
+    void renderNewPresetModal(const std::shared_ptr<MicCaptureSource>& activeMic);
     void openFileAndAddSound();
     void renderVUMeter(const char* label, float peakL, float peakR, float rmsL, float rmsR, float width = 110.0f, float height = 16.0f);
     bool renderVolumeFader(const char* str_id, float* pVolume, float width = 140.0f, float height = 22.0f);
@@ -43,6 +49,13 @@ private:
     bool m_showHotkeyModal = false;
     bool m_showPanicHotkeyModal = false;
     bool m_showBridgeHelpModal = false;
+    bool m_showNewPresetModal = false;
+
+    // Custom voice presets
+    std::vector<CustomVoicePreset> m_customPresets;
+    int m_selectedCustomPresetIdx = -1;
+    char m_newPresetName[64] = "My Custom Voice";
+    char m_newPresetDesc[128] = "Custom DSP pitch & EQ";
 
     // Hotkey recording state
     std::string m_hotkeyTargetSfxId;

@@ -42,6 +42,46 @@ bool ConfigManager::loadConfig(const std::string& filePath, AppConfig& outConfig
             if (v.contains("reverbWet")) outConfig.voiceFx.reverbWet = v["reverbWet"].get<float>();
             if (v.contains("gateEnabled")) outConfig.voiceFx.gateEnabled = v["gateEnabled"].get<bool>();
             if (v.contains("gateThresholdDb")) outConfig.voiceFx.gateThresholdDb = v["gateThresholdDb"].get<float>();
+
+            if (v.contains("formantSemitones")) outConfig.voiceFx.formantSemitones = v["formantSemitones"].get<float>();
+            if (v.contains("compEnabled")) outConfig.voiceFx.compEnabled = v["compEnabled"].get<bool>();
+            if (v.contains("compThresholdDb")) outConfig.voiceFx.compThresholdDb = v["compThresholdDb"].get<float>();
+            if (v.contains("compRatio")) outConfig.voiceFx.compRatio = v["compRatio"].get<float>();
+            if (v.contains("compMakeupDb")) outConfig.voiceFx.compMakeupDb = v["compMakeupDb"].get<float>();
+            if (v.contains("eqEnabled")) outConfig.voiceFx.eqEnabled = v["eqEnabled"].get<bool>();
+            if (v.contains("eqLowGainDb")) outConfig.voiceFx.eqLowGainDb = v["eqLowGainDb"].get<float>();
+            if (v.contains("eqMidGainDb")) outConfig.voiceFx.eqMidGainDb = v["eqMidGainDb"].get<float>();
+            if (v.contains("eqHighGainDb")) outConfig.voiceFx.eqHighGainDb = v["eqHighGainDb"].get<float>();
+        }
+
+        outConfig.customPresets.clear();
+        if (j.contains("customPresets") && j["customPresets"].is_array()) {
+            for (const auto& cp : j["customPresets"]) {
+                CustomVoicePreset p;
+                if (cp.contains("id")) p.id = cp["id"].get<std::string>();
+                if (cp.contains("name")) p.name = cp["name"].get<std::string>();
+                if (cp.contains("description")) p.description = cp["description"].get<std::string>();
+                if (cp.contains("pitchSemitones")) p.pitchSemitones = cp["pitchSemitones"].get<float>();
+                if (cp.contains("formantSemitones")) p.formantSemitones = cp["formantSemitones"].get<float>();
+                if (cp.contains("robotEnabled")) p.robotEnabled = cp["robotEnabled"].get<bool>();
+                if (cp.contains("robotFreq")) p.robotFreq = cp["robotFreq"].get<float>();
+                if (cp.contains("radioEnabled")) p.radioEnabled = cp["radioEnabled"].get<bool>();
+                if (cp.contains("reverbWet")) p.reverbWet = cp["reverbWet"].get<float>();
+                if (cp.contains("gateEnabled")) p.gateEnabled = cp["gateEnabled"].get<bool>();
+                if (cp.contains("gateThresholdDb")) p.gateThresholdDb = cp["gateThresholdDb"].get<float>();
+                if (cp.contains("compressorEnabled")) p.compressorEnabled = cp["compressorEnabled"].get<bool>();
+                if (cp.contains("compThresholdDb")) p.compThresholdDb = cp["compThresholdDb"].get<float>();
+                if (cp.contains("compRatio")) p.compRatio = cp["compRatio"].get<float>();
+                if (cp.contains("compMakeupDb")) p.compMakeupDb = cp["compMakeupDb"].get<float>();
+                if (cp.contains("eqEnabled")) p.eqEnabled = cp["eqEnabled"].get<bool>();
+                if (cp.contains("eqLowGainDb")) p.eqLowGainDb = cp["eqLowGainDb"].get<float>();
+                if (cp.contains("eqMidGainDb")) p.eqMidGainDb = cp["eqMidGainDb"].get<float>();
+                if (cp.contains("eqHighGainDb")) p.eqHighGainDb = cp["eqHighGainDb"].get<float>();
+                if (cp.contains("hotkeyModifiers")) p.hotkeyModifiers = cp["hotkeyModifiers"].get<uint32_t>();
+                if (cp.contains("hotkeyVk")) p.hotkeyVk = cp["hotkeyVk"].get<uint32_t>();
+                if (cp.contains("hotkeyText")) p.hotkeyText = cp["hotkeyText"].get<std::string>();
+                outConfig.customPresets.push_back(p);
+            }
         }
 
         outConfig.soundEffects.clear();
@@ -132,7 +172,45 @@ bool ConfigManager::saveConfig(const std::string& filePath, const AppConfig& con
         v["reverbWet"] = config.voiceFx.reverbWet;
         v["gateEnabled"] = config.voiceFx.gateEnabled;
         v["gateThresholdDb"] = config.voiceFx.gateThresholdDb;
+        v["formantSemitones"] = config.voiceFx.formantSemitones;
+        v["compEnabled"] = config.voiceFx.compEnabled;
+        v["compThresholdDb"] = config.voiceFx.compThresholdDb;
+        v["compRatio"] = config.voiceFx.compRatio;
+        v["compMakeupDb"] = config.voiceFx.compMakeupDb;
+        v["eqEnabled"] = config.voiceFx.eqEnabled;
+        v["eqLowGainDb"] = config.voiceFx.eqLowGainDb;
+        v["eqMidGainDb"] = config.voiceFx.eqMidGainDb;
+        v["eqHighGainDb"] = config.voiceFx.eqHighGainDb;
         j["voiceFx"] = v;
+
+        json cpArray = json::array();
+        for (const auto& cp : config.customPresets) {
+            json item;
+            item["id"] = cp.id;
+            item["name"] = cp.name;
+            item["description"] = cp.description;
+            item["pitchSemitones"] = cp.pitchSemitones;
+            item["formantSemitones"] = cp.formantSemitones;
+            item["robotEnabled"] = cp.robotEnabled;
+            item["robotFreq"] = cp.robotFreq;
+            item["radioEnabled"] = cp.radioEnabled;
+            item["reverbWet"] = cp.reverbWet;
+            item["gateEnabled"] = cp.gateEnabled;
+            item["gateThresholdDb"] = cp.gateThresholdDb;
+            item["compressorEnabled"] = cp.compressorEnabled;
+            item["compThresholdDb"] = cp.compThresholdDb;
+            item["compRatio"] = cp.compRatio;
+            item["compMakeupDb"] = cp.compMakeupDb;
+            item["eqEnabled"] = cp.eqEnabled;
+            item["eqLowGainDb"] = cp.eqLowGainDb;
+            item["eqMidGainDb"] = cp.eqMidGainDb;
+            item["eqHighGainDb"] = cp.eqHighGainDb;
+            item["hotkeyModifiers"] = cp.hotkeyModifiers;
+            item["hotkeyVk"] = cp.hotkeyVk;
+            item["hotkeyText"] = cp.hotkeyText;
+            cpArray.push_back(item);
+        }
+        j["customPresets"] = cpArray;
 
         json sfxArray = json::array();
         for (const auto& sfx : config.soundEffects) {
@@ -225,6 +303,15 @@ AppConfig ConfigManager::extractFromEngine(AudioEngine& engine) {
                 cfg.voiceFx.reverbWet = vp.getReverbWet();
                 cfg.voiceFx.gateEnabled = vp.isNoiseGateEnabled();
                 cfg.voiceFx.gateThresholdDb = vp.getNoiseGateThresholdDb();
+                cfg.voiceFx.formantSemitones = vp.getFormantSemitones();
+                cfg.voiceFx.compEnabled = vp.isCompressorEnabled();
+                cfg.voiceFx.compThresholdDb = vp.getCompressorThresholdDb();
+                cfg.voiceFx.compRatio = vp.getCompressorRatio();
+                cfg.voiceFx.compMakeupDb = vp.getCompressorMakeupGainDb();
+                cfg.voiceFx.eqEnabled = vp.isEqEnabled();
+                cfg.voiceFx.eqLowGainDb = vp.getEqLowGainDb();
+                cfg.voiceFx.eqMidGainDb = vp.getEqMidGainDb();
+                cfg.voiceFx.eqHighGainDb = vp.getEqHighGainDb();
             }
         } else {
             s.type = "app";
@@ -306,6 +393,15 @@ void ConfigManager::applyToEngine(AudioEngine& engine, const AppConfig& config) 
                     vp.setReverbWet(config.voiceFx.reverbWet);
                     vp.setNoiseGateEnabled(config.voiceFx.gateEnabled);
                     vp.setNoiseGateThresholdDb(config.voiceFx.gateThresholdDb);
+                    vp.setFormantSemitones(config.voiceFx.formantSemitones);
+                    vp.setCompressorEnabled(config.voiceFx.compEnabled);
+                    vp.setCompressorThresholdDb(config.voiceFx.compThresholdDb);
+                    vp.setCompressorRatio(config.voiceFx.compRatio);
+                    vp.setCompressorMakeupGainDb(config.voiceFx.compMakeupDb);
+                    vp.setEqEnabled(config.voiceFx.eqEnabled);
+                    vp.setEqLowGainDb(config.voiceFx.eqLowGainDb);
+                    vp.setEqMidGainDb(config.voiceFx.eqMidGainDb);
+                    vp.setEqHighGainDb(config.voiceFx.eqHighGainDb);
 
                     if (mic->start()) {
                         engine.getMixer().addSource(mic);

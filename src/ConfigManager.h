@@ -2,6 +2,7 @@
 
 #include <string>
 #include <vector>
+#include "VoiceProcessor.h"
 
 struct SavedSourceConfig {
     std::string type; // "mic" or "app"
@@ -35,12 +36,21 @@ struct SavedVoiceFxConfig {
     bool enabled = false;
     int preset = 0;
     float pitchSemitones = 0.0f;
+    float formantSemitones = 0.0f;
     bool robotEnabled = false;
     float robotFreq = 120.0f;
     bool radioEnabled = false;
     float reverbWet = 0.0f;
     bool gateEnabled = true;
     float gateThresholdDb = -48.0f;
+    bool compEnabled = false;
+    float compThresholdDb = -18.0f;
+    float compRatio = 3.0f;
+    float compMakeupDb = 3.0f;
+    bool eqEnabled = false;
+    float eqLowGainDb = 0.0f;
+    float eqMidGainDb = 0.0f;
+    float eqHighGainDb = 0.0f;
 };
 
 struct AppConfig {
@@ -55,6 +65,7 @@ struct AppConfig {
     std::string stopAllText;
 
     SavedVoiceFxConfig voiceFx;
+    std::vector<CustomVoicePreset> customPresets;
 
     std::vector<SavedOutputConfig> outputs;
     std::vector<SavedSourceConfig> sources;
