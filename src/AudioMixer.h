@@ -48,7 +48,18 @@ public:
 
     // Real-time audio rendering call (AUDIO THREAD ONLY: no locks, no allocs)
     // Fills outMixBuffer with frameCount interleaved stereo float samples (48kHz)
-    void processAudio(float* outMixBuffer, size_t frameCount);
+    void processAudio(float* outMixBuffer, size_t frameCount) {
+        processAudioDual(outMixBuffer, nullptr, frameCount);
+    }
+
+    // Dual-bus processing:
+    // outPrimaryBuffer: Headphone mix (Apps + Soundboard + Sidetone Mic if enabled)
+    // outBroadcastBuffer: Virtual Mic mix for Discord/Games (Mic with Voice FX + Soundboard)
+    void processAudioDual(float* outPrimaryBuffer, float* outBroadcastBuffer, size_t frameCount);
+
+    // Sidetone / Hear My Voice in headphones
+    void setSidetoneEnabled(bool enabled) { m_sidetoneEnabled.store(enabled, std::memory_order_relaxed); }
+    bool isSidetoneEnabled() const { return m_sidetoneEnabled.load(std::memory_order_relaxed); }
 
     // Monitor output ring buffer
     void setMonitorEnabled(bool enabled) { m_monitorEnabled.store(enabled, std::memory_order_relaxed); }
@@ -79,6 +90,9 @@ private:
     std::atomic<uint32_t> m_totalGlitches{0};
 
     SoftLimiter m_limiter;
+    SoftLimiter m_broadcastLimiter;
+
+    std::atomic<bool> m_sidetoneEnabled{false};
 
     SoundboardManager m_soundboard;
 

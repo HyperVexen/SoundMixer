@@ -6,6 +6,13 @@
 
 SoundboardManager::SoundboardManager() {
     std::memset(m_tempSfxBuffer, 0, sizeof(m_tempSfxBuffer));
+
+    // Default voice preset macro hotkeys (Ctrl+1 through Ctrl+7)
+    for (int i = 0; i < 7; ++i) {
+        m_voiceHotkeys[i].modifiers = MOD_CONTROL;
+        m_voiceHotkeys[i].vk = '1' + i;
+        m_voiceHotkeys[i].text = std::string("Ctrl+") + static_cast<char>('1' + i);
+    }
 }
 
 SoundboardManager::~SoundboardManager() {
@@ -224,6 +231,29 @@ void SoundboardManager::registerHotkeys(HWND hwnd) {
     if (m_stopAllVk != 0) {
         RegisterHotKey(hwnd, STOP_ALL_HOTKEY_ID, m_stopAllModifiers | MOD_NOREPEAT, m_stopAllVk);
     }
+
+    // Register voice preset macro hotkeys
+    for (int i = 0; i < 7; ++i) {
+        if (m_voiceHotkeys[i].vk != 0) {
+            RegisterHotKey(hwnd, VOICE_PRESET_BASE_HOTKEY_ID + i,
+                           m_voiceHotkeys[i].modifiers | MOD_NOREPEAT,
+                           m_voiceHotkeys[i].vk);
+        }
+    }
+
+    // Register mic mute hotkey
+    if (m_micMuteHotkey.vk != 0) {
+        RegisterHotKey(hwnd, MIC_MUTE_HOTKEY_ID,
+                       m_micMuteHotkey.modifiers | MOD_NOREPEAT,
+                       m_micMuteHotkey.vk);
+    }
+
+    // Register sidetone hotkey
+    if (m_sidetoneHotkey.vk != 0) {
+        RegisterHotKey(hwnd, SIDETONE_HOTKEY_ID,
+                       m_sidetoneHotkey.modifiers | MOD_NOREPEAT,
+                       m_sidetoneHotkey.vk);
+    }
 }
 
 void SoundboardManager::unregisterHotkeys(HWND hwnd) {
@@ -234,6 +264,13 @@ void SoundboardManager::unregisterHotkeys(HWND hwnd) {
         UnregisterHotKey(hwnd, BASE_HOTKEY_ID + static_cast<int>(i));
     }
     UnregisterHotKey(hwnd, STOP_ALL_HOTKEY_ID);
+
+    for (int i = 0; i < 7; ++i) {
+        UnregisterHotKey(hwnd, VOICE_PRESET_BASE_HOTKEY_ID + i);
+    }
+    UnregisterHotKey(hwnd, MIC_MUTE_HOTKEY_ID);
+    UnregisterHotKey(hwnd, SIDETONE_HOTKEY_ID);
+
     m_registeredHwnd = nullptr;
 }
 
@@ -246,6 +283,27 @@ void SoundboardManager::reregisterHotkeys() {
 bool SoundboardManager::handleHotkey(int hotkeyId) {
     if (hotkeyId == STOP_ALL_HOTKEY_ID) {
         stopAllSounds();
+        return true;
+    }
+
+    if (hotkeyId >= VOICE_PRESET_BASE_HOTKEY_ID && hotkeyId < VOICE_PRESET_BASE_HOTKEY_ID + 7) {
+        if (m_voicePresetCb) {
+            m_voicePresetCb(hotkeyId - VOICE_PRESET_BASE_HOTKEY_ID);
+        }
+        return true;
+    }
+
+    if (hotkeyId == MIC_MUTE_HOTKEY_ID) {
+        if (m_micMuteCb) {
+            m_micMuteCb();
+        }
+        return true;
+    }
+
+    if (hotkeyId == SIDETONE_HOTKEY_ID) {
+        if (m_sidetoneCb) {
+            m_sidetoneCb();
+        }
         return true;
     }
 
@@ -333,4 +391,49 @@ std::string SoundboardManager::formatHotkeyText(uint32_t modifiers, uint32_t vk)
     // Fallback virtual key code
     ss << "Key0x" << std::hex << std::uppercase << vk;
     return ss.str();
+}
+
+void SoundboardManager::setVoicePresetHotkey(int presetIndex, uint32_t mods, uint32_t vk, const std::string& text) {
+    std::lock_guard<std::mutex> lock(m_mutex);
+    if (presetIndex < 0 || presetIndex >= 7) return;
+    if (m_registeredHwnd) {
+        UnregisterHotKey(m_registeredHwnd, VOICE_PRESET_BASE_HOTKEY_ID + presetIndex);
+    }
+    m_voiceHotkeys[presetIndex].modifiers = mods;
+    m_voiceHotkeys[presetIndex].vk = vk;
+    m_voiceHotkeys[presetIndex].text = text;
+    if (m_registeredHwnd && vk != 0) {
+        RegisterHotKey(m_registeredHwnd, VOICE_PRESET_BASE_HOTKEY_ID + presetIndex, mods | MOD_NOREPEAT, vk);
+    }
+}
+
+SoundboardManager::HotkeyConfig SoundboardManager::getVoicePresetHotkey(int presetIndex) const {
+    if (presetIndex < 0 || presetIndex >= 7) return {};
+    return m_voiceHotkeys[presetIndex];
+}
+
+void SoundboardManager::setMicMuteHotkey(uint32_t mods, uint32_t vk, const std::string& text) {
+    std::lock_guard<std::mutex> lock(m_mutex);
+    if (m_registeredHwnd) {
+        UnregisterHotKey(m_registeredHwnd, MIC_MUTE_HOTKEY_ID);
+    }
+    m_micMuteHotkey.modifiers = mods;
+    m_micMuteHotkey.vk = vk;
+    m_micMuteHotkey.text = text;
+    if (m_registeredHwnd && vk != 0) {
+        RegisterHotKey(m_registeredHwnd, MIC_MUTE_HOTKEY_ID, mods | MOD_NOREPEAT, vk);
+    }
+}
+
+void SoundboardManager::setSidetoneHotkey(uint32_t mods, uint32_t vk, const std::string& text) {
+    std::lock_guard<std::mutex> lock(m_mutex);
+    if (m_registeredHwnd) {
+        UnregisterHotKey(m_registeredHwnd, SIDETONE_HOTKEY_ID);
+    }
+    m_sidetoneHotkey.modifiers = mods;
+    m_sidetoneHotkey.vk = vk;
+    m_sidetoneHotkey.text = text;
+    if (m_registeredHwnd && vk != 0) {
+        RegisterHotKey(m_registeredHwnd, SIDETONE_HOTKEY_ID, mods | MOD_NOREPEAT, vk);
+    }
 }

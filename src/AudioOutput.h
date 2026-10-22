@@ -11,6 +11,11 @@
 #include "RingBuffer.h"
 #include "AudioCommon.h"
 
+enum class OutputRouteMode {
+    VirtualMicStream = 0, // Mic + Voice FX + Soundboard (for Discord / Games)
+    FullMix = 1          // Full Master Mix (for physical speakers / headphones)
+};
+
 class AudioOutput {
 public:
     using AudioRenderCallback = std::function<void(float* outStereoBuffer, UINT32 frameCount)>;
@@ -27,6 +32,12 @@ public:
 
     bool isPrimary() const { return m_isPrimary.load(std::memory_order_relaxed); }
     void setPrimary(bool primary) { m_isPrimary.store(primary, std::memory_order_relaxed); }
+
+    OutputRouteMode getRouteMode() const { return m_routeMode.load(std::memory_order_relaxed); }
+    void setRouteMode(OutputRouteMode mode) { m_routeMode.store(mode, std::memory_order_relaxed); }
+
+    bool isVirtualDevice() const { return m_isVirtualDevice; }
+    void setVirtualDevice(bool v) { m_isVirtualDevice = v; }
 
     // Callback used when this output is Primary to fetch fresh mixed frames
     void setAudioCallback(AudioRenderCallback cb) { m_audioCallback = cb; }
@@ -68,6 +79,8 @@ private:
     std::wstring m_wideDeviceId;
 
     std::atomic<bool> m_isPrimary{false};
+    std::atomic<OutputRouteMode> m_routeMode{OutputRouteMode::FullMix};
+    bool m_isVirtualDevice = false;
     AudioRenderCallback m_audioCallback;
 
     std::atomic<float> m_volume{1.0f};

@@ -360,8 +360,27 @@ void SoundMixerUI::renderHeader() {
     }
     ImGui::PopStyleColor(2);
 
-    ImGui::SameLine(ImGui::GetWindowWidth() - 170.0f);
+    ImGui::SameLine(ImGui::GetWindowWidth() - 330.0f);
 
+    bool sidetoneOn = m_engine.getMixer().isSidetoneEnabled();
+    if (sidetoneOn) {
+        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.12f, 0.50f, 0.40f, 1.0f));
+        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.16f, 0.65f, 0.52f, 1.0f));
+        ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 1.0f, 1.0f, 1.0f));
+    } else {
+        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.14f, 0.16f, 0.20f, 0.7f));
+        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.20f, 0.24f, 0.30f, 0.9f));
+        ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.6f, 0.65f, 0.75f, 1.0f));
+    }
+    if (ImGui::Button(sidetoneOn ? "[ 🎧 Hear Voice: ON ]" : "[ 🎧 Hear Voice: OFF ]", ImVec2(150, 24))) {
+        m_engine.getMixer().setSidetoneEnabled(!sidetoneOn);
+    }
+    ImGui::PopStyleColor(3);
+    if (ImGui::IsItemHovered()) {
+        ImGui::SetTooltip("Instant Zero-Latency Sidetone (Ctrl+Shift+H)\nWhen ON, your modulated voice is monitored in your headphones.\nDiscord / Games always hear your voice regardless of this toggle.");
+    }
+
+    ImGui::SameLine();
     if (ImGui::Button("Save Config", ImVec2(90, 24))) {
         auto cfg = ConfigManager::extractFromEngine(m_engine);
         if (ConfigManager::saveConfig(ConfigManager::getDefaultConfigPath(), cfg)) {
@@ -497,8 +516,10 @@ void SoundMixerUI::renderOutputsList() {
 
             ImGui::BeginChild(out->getId().c_str(), ImVec2(0, 68), true, ImGuiWindowFlags_NoScrollbar);
 
-            // Badge: [PRIMARY] in cyan or [OUTPUT] in slate
-            if (out->isPrimary()) {
+            // Badge: [🎙 VIRTUAL MIC], [PRIMARY], or [OUTPUT]
+            if (out->getRouteMode() == OutputRouteMode::VirtualMicStream) {
+                ImGui::TextColored(ImVec4(0.2f, 0.95f, 0.55f, 1.00f), "[VIRTUAL MIC]");
+            } else if (out->isPrimary()) {
                 ImGui::TextColored(ImVec4(0.26f, 0.72f, 1.00f, 1.00f), "[PRIMARY]");
             } else {
                 ImGui::TextColored(ImVec4(0.6f, 0.7f, 0.8f, 1.00f), "[OUTPUT]");
@@ -563,8 +584,30 @@ void SoundMixerUI::renderOutputsList() {
             ImGui::TextDisabled("Latency: %.2f ms (%u frames) | Glitches: %u",
                 out->getLatencyMs(), out->getBufferPeriodFrames(), out->getGlitchCount());
 
+            ImGui::SameLine(330.0f);
+            bool isVirtualMode = (out->getRouteMode() == OutputRouteMode::VirtualMicStream);
+            if (isVirtualMode) {
+                ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.10f, 0.38f, 0.25f, 0.8f));
+                ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.35f, 1.0f, 0.65f, 1.0f));
+            } else {
+                ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.14f, 0.17f, 0.22f, 0.7f));
+                ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.6f, 0.7f, 0.85f, 1.0f));
+            }
+            const char* modeLabel = isVirtualMode ? "Route: Voice + SFX (Discord)" : "Route: Full Desktop Mix";
+            if (ImGui::SmallButton(modeLabel)) {
+                out->setRouteMode(isVirtualMode ? OutputRouteMode::FullMix : OutputRouteMode::VirtualMicStream);
+            }
+            ImGui::PopStyleColor(2);
+            if (ImGui::IsItemHovered()) {
+                if (isVirtualMode) {
+                    ImGui::SetTooltip("Broadcast Stream (Voicemod / Discord / Games):\nRoutes ONLY your Mic (with Voice FX) + Soundboard to this device.\nDesktop/app audio is excluded to prevent feedback loops in chat!");
+                } else {
+                    ImGui::SetTooltip("Full Mix (Headphones / Speakers):\nRoutes all desktop audio, music, soundboard, and sidetone mic to this device.");
+                }
+            }
+
             if (!out->isPrimary()) {
-                ImGui::SameLine(465.0f);
+                ImGui::SameLine(545.0f);
                 if (ImGui::SmallButton("Set as Primary Clock")) {
                     m_engine.setPrimaryOutput(out->getId());
                 }
@@ -1297,15 +1340,35 @@ void SoundMixerUI::renderVoiceFxTab() {
     ImGui::SameLine();
     ImGui::TextDisabled("(Target: %s)", activeMic->getName().c_str());
 
+    // Sidetone and FX enable buttons
+    ImGui::SameLine(ImGui::GetWindowWidth() - 390.0f);
+    bool sidetoneOn = m_engine.getMixer().isSidetoneEnabled();
+    if (sidetoneOn) {
+        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.12f, 0.50f, 0.40f, 1.0f));
+        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.16f, 0.65f, 0.52f, 1.0f));
+        ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 1.0f, 1.0f, 1.0f));
+    } else {
+        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.14f, 0.16f, 0.20f, 0.7f));
+        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.20f, 0.24f, 0.30f, 0.9f));
+        ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.6f, 0.65f, 0.75f, 1.0f));
+    }
+    if (ImGui::Button(sidetoneOn ? "🎧 Sidetone: ON" : "🎧 Sidetone: OFF", ImVec2(130, 24))) {
+        m_engine.getMixer().setSidetoneEnabled(!sidetoneOn);
+    }
+    ImGui::PopStyleColor(3);
+    if (ImGui::IsItemHovered()) {
+        ImGui::SetTooltip("Instant Zero-Latency Sidetone (Ctrl+Shift+H)\nHear your modulated voice in your headphones.\nDoes not affect what Discord/Games hear.");
+    }
+
     // Master enable toggle
-    ImGui::SameLine(ImGui::GetWindowWidth() - 250.0f);
+    ImGui::SameLine();
     bool fxEnabled = vp.isEnabled();
     if (fxEnabled) {
         ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.15f, 0.55f, 0.45f, 1.0f));
     } else {
         ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.20f, 0.22f, 0.26f, 0.8f));
     }
-    if (ImGui::Button(fxEnabled ? "FX: ACTIVE" : "FX: BYPASS", ImVec2(110, 24))) {
+    if (ImGui::Button(fxEnabled ? "FX: ACTIVE" : "FX: BYPASS", ImVec2(100, 24))) {
         vp.setEnabled(!fxEnabled);
     }
     ImGui::PopStyleColor();
@@ -1318,23 +1381,24 @@ void SoundMixerUI::renderVoiceFxTab() {
     ImGui::EndChild();
 
     // Preset selection cards
-    ImGui::BeginChild("VoiceFxPresetsChild", ImVec2(0, 85), true);
-    ImGui::TextColored(ImVec4(0.9f, 0.9f, 0.9f, 1.0f), "VOICE PRESETS");
+    ImGui::BeginChild("VoiceFxPresetsChild", ImVec2(0, 96), true);
+    ImGui::TextColored(ImVec4(0.9f, 0.9f, 0.9f, 1.0f), "VOICE PRESETS (GLOBAL MACROS)");
     ImGui::Spacing();
 
     struct PresetInfo {
         VoicePreset preset;
         const char* label;
         const char* desc;
+        const char* hotkey;
     };
     PresetInfo presets[] = {
-        { VoicePreset::Clean,      "Clean",        "Natural" },
-        { VoicePreset::DeepDemon,  "Deep Demon",   "-7 st Deep" },
-        { VoicePreset::Chipmunk,   "Chipmunk",     "+8.5 st High" },
-        { VoicePreset::Robot,      "Robot",        "110Hz Ring" },
-        { VoicePreset::Radio,      "Walkie-Talkie","Bandpass" },
-        { VoicePreset::CaveReverb, "Cathedral",    "Echo Space" },
-        { VoicePreset::Alien,      "Alien",        "Transmission" }
+        { VoicePreset::Clean,      "Clean",         "Natural",      "Ctrl+1" },
+        { VoicePreset::DeepDemon,  "Deep Demon",    "-7 st Deep",   "Ctrl+2" },
+        { VoicePreset::Chipmunk,   "Chipmunk",      "+8.5 st High", "Ctrl+3" },
+        { VoicePreset::Robot,      "Robot",         "110Hz Ring",   "Ctrl+4" },
+        { VoicePreset::Radio,      "Walkie-Talkie", "Bandpass",     "Ctrl+5" },
+        { VoicePreset::CaveReverb, "Cathedral",     "Echo Space",   "Ctrl+6" },
+        { VoicePreset::Alien,      "Alien",         "Modulated",    "Ctrl+7" }
     };
 
     VoicePreset curPreset = vp.getPreset();
@@ -1356,13 +1420,16 @@ void SoundMixerUI::renderVoiceFxTab() {
         }
 
         ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, isSelected ? 1.5f : 1.0f);
-        char btnId[64];
-        snprintf(btnId, sizeof(btnId), "%s\n%s##preset_%zu", presets[i].label, presets[i].desc, i);
-        if (ImGui::Button(btnId, ImVec2(98, 48))) {
+        char btnId[96];
+        snprintf(btnId, sizeof(btnId), "%s\n%s\n[%s]##preset_%zu", presets[i].label, presets[i].desc, presets[i].hotkey, i);
+        if (ImGui::Button(btnId, ImVec2(98, 56))) {
             vp.setPreset(presets[i].preset);
         }
         ImGui::PopStyleVar();
         ImGui::PopStyleColor(3);
+        if (ImGui::IsItemHovered()) {
+            ImGui::SetTooltip("Switch to %s voice preset (Global Hotkey: %s)", presets[i].label, presets[i].hotkey);
+        }
     }
     ImGui::EndChild();
 
@@ -1462,6 +1529,15 @@ void SoundMixerUI::renderVoiceFxTab() {
     ImGui::TextDisabled("• Algorithmic Delay: < 5 ms");
     ImGui::TextDisabled("• Memory Allocation: 0 bytes in audio loop");
     ImGui::TextDisabled("• WASAPI Stream: Shared Mode Event-Driven");
+
+    ImGui::Spacing();
+    ImGui::Separator();
+    ImGui::Spacing();
+
+    ImGui::TextColored(ImVec4(0.9f, 0.85f, 0.3f, 1.0f), "GLOBAL MACROS");
+    ImGui::TextDisabled("• Ctrl+1 .. Ctrl+7: Voice Presets");
+    ImGui::TextDisabled("• Ctrl+Shift+M: Mute/Unmute Mic");
+    ImGui::TextDisabled("• Ctrl+Shift+H: Sidetone Monitor");
 
     ImGui::Columns(1);
     ImGui::EndChild();

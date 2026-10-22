@@ -69,10 +69,11 @@ target_link_libraries(test_probe PRIVATE ole32 propsys avrt mmdevapi)
 add_executable(test_cable_loop test_cable_loop.cpp)
 target_link_libraries(test_cable_loop PRIVATE ole32 propsys avrt mmdevapi)
 
-add_executable(test_mixer_core test_mixer_core.cpp src/AudioMixer.cpp)
-target_include_directories(test_mixer_core PRIVATE src)
+add_executable(test_mixer_core test_mixer_core.cpp src/AudioMixer.cpp src/SoundboardManager.cpp src/SoundEffect.cpp src/AudioFileReader.cpp)
+target_include_directories(test_mixer_core PRIVATE src third_party)
+target_link_libraries(test_mixer_core PRIVATE ole32 propsys avrt mmdevapi mfplat mfreadwrite mfuuid)
 
-add_executable(test_mic_capture test_mic_capture.cpp src/MicCaptureSource.cpp src/AudioDeviceManager.cpp)
+add_executable(test_mic_capture test_mic_capture.cpp src/MicCaptureSource.cpp src/AudioDeviceManager.cpp src/VoiceProcessor.cpp)
 target_include_directories(test_mic_capture PRIVATE src)
 target_link_libraries(test_mic_capture PRIVATE ole32 propsys avrt mmdevapi)
 
@@ -80,13 +81,13 @@ add_executable(test_process_loopback test_process_loopback.cpp src/ProcessCaptur
 target_include_directories(test_process_loopback PRIVATE src)
 target_link_libraries(test_process_loopback PRIVATE ole32 propsys avrt mmdevapi windowsapp)
 
-add_executable(test_config test_config.cpp src/ConfigManager.cpp src/AudioOutput.cpp src/AudioMixer.cpp src/AudioEngine.cpp src/AudioDeviceManager.cpp src/MicCaptureSource.cpp src/ProcessCaptureSource.cpp src/ProcessEnumerator.cpp)
+add_executable(test_config test_config.cpp src/ConfigManager.cpp src/AudioOutput.cpp src/AudioMixer.cpp src/AudioEngine.cpp src/AudioDeviceManager.cpp src/MicCaptureSource.cpp src/ProcessCaptureSource.cpp src/ProcessEnumerator.cpp src/SoundboardManager.cpp src/SoundEffect.cpp src/AudioFileReader.cpp src/VoiceProcessor.cpp)
 target_include_directories(test_config PRIVATE src third_party)
-target_link_libraries(test_config PRIVATE ole32 propsys avrt mmdevapi windowsapp)
+target_link_libraries(test_config PRIVATE ole32 propsys avrt mmdevapi windowsapp mfplat mfreadwrite mfuuid)
 
-add_executable(test_multi_output test_multi_output.cpp src/AudioOutput.cpp src/AudioMixer.cpp src/AudioEngine.cpp src/AudioDeviceManager.cpp)
+add_executable(test_multi_output test_multi_output.cpp src/AudioOutput.cpp src/AudioMixer.cpp src/AudioEngine.cpp src/AudioDeviceManager.cpp src/SoundboardManager.cpp src/SoundEffect.cpp src/AudioFileReader.cpp)
 target_include_directories(test_multi_output PRIVATE src third_party)
-target_link_libraries(test_multi_output PRIVATE ole32 propsys avrt mmdevapi windowsapp)
+target_link_libraries(test_multi_output PRIVATE ole32 propsys avrt mmdevapi windowsapp mfplat mfreadwrite mfuuid)
 
 
 

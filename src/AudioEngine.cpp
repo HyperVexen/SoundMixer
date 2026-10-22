@@ -70,13 +70,21 @@ void AudioEngine::updatePrimaryAssignment() {
 }
 
 void AudioEngine::onPrimaryNeedAudio(float* outStereoBuffer, UINT32 frameCount) {
-    // 1. Audio thread mixes inputs into outStereoBuffer (no heap allocs, no locks)
-    m_mixer.processAudio(outStereoBuffer, frameCount);
+    size_t clamped = (std::min)(static_cast<size_t>(frameCount), sizeof(m_broadcastBuffer) / (2 * sizeof(float)));
 
-    // 2. Broadcast the mixed audio buffer to all active secondary outputs
+    // 1. Dual-bus real-time mixing:
+    // outStereoBuffer = Primary Headphone mix (Apps + Soundboard + Sidetone Mic if enabled)
+    // m_broadcastBuffer = Broadcast Virtual Mic mix (Mic with Voice FX + Soundboard)
+    m_mixer.processAudioDual(outStereoBuffer, m_broadcastBuffer, clamped);
+
+    // 2. Route to secondary outputs based on their selected route mode
     for (const auto& sec : m_secondaryOutputsSnapshot) {
         if (sec && sec->isRunning()) {
-            sec->pushFrames(outStereoBuffer, frameCount);
+            if (sec->getRouteMode() == OutputRouteMode::VirtualMicStream) {
+                sec->pushFrames(m_broadcastBuffer, clamped);
+            } else {
+                sec->pushFrames(outStereoBuffer, clamped);
+            }
         }
     }
 }

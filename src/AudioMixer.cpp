@@ -85,13 +85,17 @@ std::vector<std::shared_ptr<AudioSource>> AudioMixer::getSources() {
     return list;
 }
 
-void AudioMixer::processAudio(float* outMixBuffer, size_t frameCount) {
-    if (!outMixBuffer || frameCount == 0) return;
+void AudioMixer::processAudioDual(float* outPrimaryBuffer, float* outBroadcastBuffer, size_t frameCount) {
+    if (!outPrimaryBuffer || frameCount == 0) return;
 
     // Zero out the mix buffer
-    std::memset(outMixBuffer, 0, frameCount * 2 * sizeof(float));
+    std::memset(outPrimaryBuffer, 0, frameCount * 2 * sizeof(float));
+    if (outBroadcastBuffer) {
+        std::memset(outBroadcastBuffer, 0, frameCount * 2 * sizeof(float));
+    }
 
     size_t clampedFrames = (std::min)(frameCount, sizeof(m_tempSourceBuffer) / (2 * sizeof(float)));
+    bool sidetone = m_sidetoneEnabled.load(std::memory_order_relaxed);
 
     // Iterate through slots without holding any lock (Audio Thread Rule)
     for (size_t s = 0; s < MAX_SOURCES; ++s) {
@@ -131,20 +135,43 @@ void AudioMixer::processAudio(float* outMixBuffer, size_t frameCount) {
         float endGain = targetVol;
         float gainStep = (endGain - startGain) / static_cast<float>(clampedFrames);
 
-        // Sum into master mix with smooth de-zippering
+        bool isMic = (source->getType() == SourceType::Microphone);
+
+        // Sum into appropriate mixes with smooth de-zippering
         if (startGain > 1e-4f || endGain > 1e-4f) {
             float g = startGain;
             for (size_t i = 0; i < clampedFrames; ++i) {
                 g += gainStep;
-                outMixBuffer[i * 2 + 0] += m_tempSourceBuffer[i * 2 + 0] * g;
-                outMixBuffer[i * 2 + 1] += m_tempSourceBuffer[i * 2 + 1] * g;
+                float sL = m_tempSourceBuffer[i * 2 + 0] * g;
+                float sR = m_tempSourceBuffer[i * 2 + 1] * g;
+
+                if (isMic) {
+                    // Microphone always routes to Broadcast buffer (Virtual Mic for Discord/Games)
+                    if (outBroadcastBuffer) {
+                        outBroadcastBuffer[i * 2 + 0] += sL;
+                        outBroadcastBuffer[i * 2 + 1] += sR;
+                    }
+                    // Only routes to Headphone mix if Sidetone is active
+                    if (sidetone) {
+                        outPrimaryBuffer[i * 2 + 0] += sL;
+                        outPrimaryBuffer[i * 2 + 1] += sR;
+                    }
+                } else {
+                    // Applications (Spotify, Games, YouTube):
+                    // Always route to Headphone mix
+                    outPrimaryBuffer[i * 2 + 0] += sL;
+                    outPrimaryBuffer[i * 2 + 1] += sR;
+                }
             }
         }
         source->setSmoothedGain(endGain);
     }
 
-    // Mix soundboard sound effects into master bus
-    m_soundboard.processAudio(outMixBuffer, clampedFrames);
+    // Mix soundboard sound effects into primary headphones and broadcast stream
+    m_soundboard.processAudio(outPrimaryBuffer, clampedFrames);
+    if (outBroadcastBuffer) {
+        m_soundboard.processAudio(outBroadcastBuffer, clampedFrames);
+    }
 
     // Apply master volume with smooth de-zippering
     float targetMasterVol = m_masterMuted.load(std::memory_order_relaxed) ? 0.0f : m_masterVolume.load(std::memory_order_relaxed);
@@ -156,20 +183,23 @@ void AudioMixer::processAudio(float* outMixBuffer, size_t frameCount) {
         float g = startMasterGain;
         for (size_t i = 0; i < frameCount; ++i) {
             g += masterGainStep;
-            outMixBuffer[i * 2 + 0] *= g;
-            outMixBuffer[i * 2 + 1] *= g;
+            outPrimaryBuffer[i * 2 + 0] *= g;
+            outPrimaryBuffer[i * 2 + 1] *= g;
         }
     } else {
-        std::memset(outMixBuffer, 0, frameCount * 2 * sizeof(float));
+        std::memset(outPrimaryBuffer, 0, frameCount * 2 * sizeof(float));
     }
     m_smoothedMasterGain = endMasterGain;
 
-    // Apply transparent soft limiter to prevent clipping
-    m_limiter.process(outMixBuffer, frameCount);
+    // Apply transparent soft limiters to prevent clipping
+    m_limiter.process(outPrimaryBuffer, frameCount);
+    if (outBroadcastBuffer) {
+        m_broadcastLimiter.process(outBroadcastBuffer, frameCount);
+    }
 
     // Compute master metering
     float pL, pR, rL, rR;
-    ComputeStereoLevels(outMixBuffer, frameCount, pL, pR, rL, rR);
+    ComputeStereoLevels(outPrimaryBuffer, frameCount, pL, pR, rL, rR);
     m_masterPeakL.store(pL, std::memory_order_relaxed);
     m_masterPeakR.store(pR, std::memory_order_relaxed);
     m_masterRmsL.store(rL, std::memory_order_relaxed);
@@ -177,6 +207,6 @@ void AudioMixer::processAudio(float* outMixBuffer, size_t frameCount) {
 
     // If monitor is enabled, write to monitor ring buffer
     if (m_monitorEnabled.load(std::memory_order_relaxed)) {
-        m_monitorRingBuffer.write(outMixBuffer, frameCount);
+        m_monitorRingBuffer.write(outPrimaryBuffer, frameCount);
     }
 }

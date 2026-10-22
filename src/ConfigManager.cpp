@@ -23,6 +23,7 @@ bool ConfigManager::loadConfig(const std::string& filePath, AppConfig& outConfig
 
         if (j.contains("masterVolume")) outConfig.masterVolume = j["masterVolume"].get<float>();
         if (j.contains("masterMuted")) outConfig.masterMuted = j["masterMuted"].get<bool>();
+        if (j.contains("sidetoneEnabled")) outConfig.sidetoneEnabled = j["sidetoneEnabled"].get<bool>();
 
         if (j.contains("sfxMasterVolume")) outConfig.sfxMasterVolume = j["sfxMasterVolume"].get<float>();
         if (j.contains("sfxMasterMuted")) outConfig.sfxMasterMuted = j["sfxMasterMuted"].get<bool>();
@@ -68,6 +69,7 @@ bool ConfigManager::loadConfig(const std::string& filePath, AppConfig& outConfig
                 if (item.contains("volume")) out.volume = item["volume"].get<float>();
                 if (item.contains("muted")) out.muted = item["muted"].get<bool>();
                 if (item.contains("isPrimary")) out.isPrimary = item["isPrimary"].get<bool>();
+                if (item.contains("routeMode")) out.routeMode = item["routeMode"].get<int>();
                 outConfig.outputs.push_back(out);
             }
         } else if (j.contains("outputDeviceId")) {
@@ -112,6 +114,7 @@ bool ConfigManager::saveConfig(const std::string& filePath, const AppConfig& con
         json j;
         j["masterVolume"] = config.masterVolume;
         j["masterMuted"] = config.masterMuted;
+        j["sidetoneEnabled"] = config.sidetoneEnabled;
 
         j["sfxMasterVolume"] = config.sfxMasterVolume;
         j["sfxMasterMuted"] = config.sfxMasterMuted;
@@ -154,6 +157,7 @@ bool ConfigManager::saveConfig(const std::string& filePath, const AppConfig& con
             item["volume"] = out.volume;
             item["muted"] = out.muted;
             item["isPrimary"] = out.isPrimary;
+            item["routeMode"] = out.routeMode;
             outputsArray.push_back(item);
         }
         j["outputs"] = outputsArray;
@@ -184,6 +188,7 @@ AppConfig ConfigManager::extractFromEngine(AudioEngine& engine) {
     AppConfig cfg;
     cfg.masterVolume = engine.getMixer().getMasterVolume();
     cfg.masterMuted = engine.getMixer().isMasterMuted();
+    cfg.sidetoneEnabled = engine.getMixer().isSidetoneEnabled();
 
     auto outputs = engine.getOutputs();
     for (const auto& out : outputs) {
@@ -193,6 +198,7 @@ AppConfig ConfigManager::extractFromEngine(AudioEngine& engine) {
         o.volume = out->getVolume();
         o.muted = out->isMuted();
         o.isPrimary = out->isPrimary();
+        o.routeMode = static_cast<int>(out->getRouteMode());
         cfg.outputs.push_back(o);
     }
 
@@ -260,12 +266,20 @@ void ConfigManager::applyToEngine(AudioEngine& engine, const AppConfig& config) 
     // Master settings
     engine.getMixer().setMasterVolume(config.masterVolume);
     engine.getMixer().setMasterMuted(config.masterMuted);
+    engine.getMixer().setSidetoneEnabled(config.sidetoneEnabled);
 
     // Outputs
     if (!config.outputs.empty()) {
         engine.clearOutputs();
         for (const auto& out : config.outputs) {
-            engine.addOutput(out.id, out.name, out.volume, out.muted);
+            if (engine.addOutput(out.id, out.name, out.volume, out.muted)) {
+                auto allOuts = engine.getOutputs();
+                for (auto& o : allOuts) {
+                    if (o->getId() == out.id) {
+                        o->setRouteMode(static_cast<OutputRouteMode>(out.routeMode));
+                    }
+                }
+            }
         }
     }
 

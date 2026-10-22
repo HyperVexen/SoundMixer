@@ -9,12 +9,25 @@
 #include <atomic>
 #include <array>
 #include <string>
+#include <functional>
 
 class SoundboardManager {
 public:
     static constexpr size_t MAX_SOUND_EFFECTS = 64;
     static constexpr int BASE_HOTKEY_ID = 0x5000;
     static constexpr int STOP_ALL_HOTKEY_ID = 0x5FFF;
+    static constexpr int VOICE_PRESET_BASE_HOTKEY_ID = 0x6000;
+    static constexpr int MIC_MUTE_HOTKEY_ID = 0x6020;
+    static constexpr int SIDETONE_HOTKEY_ID = 0x6021;
+
+    struct HotkeyConfig {
+        uint32_t modifiers = 0;
+        uint32_t vk = 0;
+        std::string text;
+    };
+
+    using VoicePresetCallback = std::function<void(int presetIndex)>;
+    using ActionCallback = std::function<void()>;
 
     SoundboardManager();
     ~SoundboardManager();
@@ -52,6 +65,19 @@ public:
     bool handleHotkey(int hotkeyId);
     HWND getRegisteredHwnd() const { return m_registeredHwnd; }
 
+    void setOnVoicePresetHotkey(VoicePresetCallback cb) { m_voicePresetCb = cb; }
+    void setOnMicMuteHotkey(ActionCallback cb) { m_micMuteCb = cb; }
+    void setOnSidetoneHotkey(ActionCallback cb) { m_sidetoneCb = cb; }
+
+    void setVoicePresetHotkey(int presetIndex, uint32_t mods, uint32_t vk, const std::string& text);
+    HotkeyConfig getVoicePresetHotkey(int presetIndex) const;
+
+    void setMicMuteHotkey(uint32_t mods, uint32_t vk, const std::string& text);
+    HotkeyConfig getMicMuteHotkey() const { return m_micMuteHotkey; }
+
+    void setSidetoneHotkey(uint32_t mods, uint32_t vk, const std::string& text);
+    HotkeyConfig getSidetoneHotkey() const { return m_sidetoneHotkey; }
+
     // Stop All hotkey
     void setStopAllHotkey(uint32_t modifiers, uint32_t vk, const std::string& text);
     uint32_t getStopAllModifiers() const { return m_stopAllModifiers; }
@@ -81,6 +107,14 @@ private:
     uint32_t m_stopAllModifiers = MOD_CONTROL | MOD_SHIFT;
     uint32_t m_stopAllVk = 'X';
     std::string m_stopAllText = "Ctrl+Shift+X";
+
+    VoicePresetCallback m_voicePresetCb;
+    ActionCallback m_micMuteCb;
+    ActionCallback m_sidetoneCb;
+
+    std::array<HotkeyConfig, 7> m_voiceHotkeys;
+    HotkeyConfig m_micMuteHotkey{MOD_CONTROL | MOD_SHIFT, 'M', "Ctrl+Shift+M"};
+    HotkeyConfig m_sidetoneHotkey{MOD_CONTROL | MOD_SHIFT, 'H', "Ctrl+Shift+H"};
 
     // Scratch buffer for soundboard mixing to isolate its master volume
     alignas(64) float m_tempSfxBuffer[8192 * 2];

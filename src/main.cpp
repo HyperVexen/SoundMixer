@@ -133,7 +133,35 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow) {
     // Start Audio Engine
     audioEngine.start();
 
-    // Register global macro hotkeys for Soundboard
+    // Setup Voice Preset and Action hotkey callbacks
+    audioEngine.getSoundboard().setOnVoicePresetHotkey([&audioEngine](int presetIndex) {
+        if (presetIndex >= 0 && presetIndex <= 6) {
+            VoicePreset preset = static_cast<VoicePreset>(presetIndex);
+            for (auto& src : audioEngine.getMixer().getSources()) {
+                if (src->getType() == SourceType::Microphone) {
+                    auto mic = std::dynamic_pointer_cast<MicCaptureSource>(src);
+                    if (mic) {
+                        mic->getVoiceProcessor().setPreset(preset);
+                    }
+                }
+            }
+        }
+    });
+
+    audioEngine.getSoundboard().setOnMicMuteHotkey([&audioEngine]() {
+        for (auto& src : audioEngine.getMixer().getSources()) {
+            if (src->getType() == SourceType::Microphone) {
+                src->setMuted(!src->isMuted());
+            }
+        }
+    });
+
+    audioEngine.getSoundboard().setOnSidetoneHotkey([&audioEngine]() {
+        bool current = audioEngine.getMixer().isSidetoneEnabled();
+        audioEngine.getMixer().setSidetoneEnabled(!current);
+    });
+
+    // Register global macro hotkeys for Soundboard, Voice Presets, Mic Mute, and Sidetone
     audioEngine.getSoundboard().registerHotkeys(hwnd);
 
     // Create UI Controller

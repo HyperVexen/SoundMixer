@@ -16,7 +16,17 @@ static std::wstring utf8ToWide(const std::string& str) {
 AudioOutput::AudioOutput(const std::string& deviceId, const std::string& deviceName, bool isPrimary)
     : m_deviceId(deviceId), m_deviceName(deviceName), m_isPrimary(isPrimary),
       m_wideDeviceId(utf8ToWide(deviceId)),
-      m_ringBuffer(AudioConfig::RING_BUFFER_CAPACITY) {}
+      m_ringBuffer(AudioConfig::RING_BUFFER_CAPACITY) {
+    std::string lowerName = deviceName;
+    for (auto& c : lowerName) c = static_cast<char>(tolower(c));
+    if (lowerName.find("cable") != std::string::npos ||
+        lowerName.find("vb-audio") != std::string::npos ||
+        lowerName.find("voicemod") != std::string::npos ||
+        lowerName.find("virtual") != std::string::npos) {
+        m_isVirtualDevice = true;
+        m_routeMode.store(OutputRouteMode::VirtualMicStream, std::memory_order_relaxed);
+    }
+}
 
 AudioOutput::~AudioOutput() {
     stop();

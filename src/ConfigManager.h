@@ -17,6 +17,7 @@ struct SavedOutputConfig {
     float volume = 1.0f;
     bool muted = false;
     bool isPrimary = false;
+    int routeMode = 0; // 0 = FullMix, 1 = VirtualMicStream
 };
 
 struct SavedSoundEffectConfig {
@@ -45,6 +46,7 @@ struct SavedVoiceFxConfig {
 struct AppConfig {
     float masterVolume = 1.0f;
     bool masterMuted = false;
+    bool sidetoneEnabled = false;
 
     float sfxMasterVolume = 1.0f;
     bool sfxMasterMuted = false;
